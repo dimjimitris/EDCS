@@ -1,0 +1,39 @@
+13 Write-update	
+Implement distributed memory with read and write access,
+using write-update protocol (see slides). 
+
+Project concept upload May 6
+The project concept must contain: 
+- functionality (use cases)
+- system architecture and protocols
+- class diagram
+- behavioral diagram
+- test plan
+
+A project concept should contain:
+- functionality (use cases)
+- architecture, protocols
+- structure (class diagram)
+- behavior (activity/sequence/state diagram)
+- test plan
+- functional test scenarios
+
+Use cases:
+
+Our system will have one type of user who can do any actions upon it.
+- Memory Requests/Allocation (give user some memory address that they can interact with)
+- Memory Reading (read a specific memory address)
+- Memory Writing (write to a specific memory address)
+- System Monitoring (user can see if the system is up and/or which nodes
+are currently operational etc.)
+
+These are the use cases as seen by the user.
+
+The system has more functionality to support these, such as:
+- Node Communication (of course we need a communication protocol over the network for
+how our nodes will handle communication between them - updating data, synchronizaion etc.)
+- Memory Updating (how each node handles updating its local memory, here is
+where the write-update protocol playes a role)
+- Fault tolerance (fault tolerance mechanisms must exist to allow for the system
+to handle faults/errors/nodes disconnecting and allow the user to monitor the state of
+the system)
