@@ -37,3 +37,5 @@ where the write-update protocol playes a role)
 - Fault tolerance (fault tolerance mechanisms must exist to allow for the system
 to handle faults/errors/nodes disconnecting and allow the user to monitor the state of
 the system)
+
+https://chat.openai.com/share/47efc245-fa4d-48ac-92b5-b88fc070d889
