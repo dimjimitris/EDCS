@@ -2,6 +2,7 @@ import utils
 import socket
 import threading
 
+
 class Client:
     def __init__(
         self,
@@ -75,7 +76,7 @@ def main():
         if action == "5":
             tries = 10
 
-            def f(num, client : Client):
+            def f(num, client: Client):
                 client.connect()
                 for _ in range(1):
                     print(client.read(100))
@@ -96,7 +97,6 @@ def main():
             for thread in threads:
                 thread.join()
 
-            
 
 if __name__ == "__main__":
     main()
