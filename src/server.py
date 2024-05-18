@@ -4,7 +4,6 @@ import threading as th
 import memory_manager as mm
 import utils
 
-
 class Server:
     def __init__(
         self,
@@ -26,6 +25,7 @@ class Server:
         self.dynamic = dynamic
 
     def serve_read(self, mem_address, cascade):
+        print(f"[READ REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
@@ -54,6 +54,7 @@ class Server:
         return data
 
     def serve_write(self, mem_address, data, cascade):
+        print(f"[WRITE REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
@@ -76,6 +77,7 @@ class Server:
         return data
 
     def serve_acquire_lock(self, mem_address, cascade):
+        print(f"[LOCK REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
@@ -94,6 +96,7 @@ class Server:
         return data
 
     def serve_release_lock(self, mem_address, cascade):
+        print(f"[LOCK RELEASE REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
@@ -112,27 +115,42 @@ class Server:
         return data
 
     def serve_update_shared(self, mem_address, data):
+        print(f"[UPDATE SHARED COPY] in {self.net_address} for memory {mem_address}")
         if mem_address in self.shared_manager:
             self.shared_manager[mem_address] = data
+        return f"[UPDATE SHARED COPY] in {self.net_address} for memory {mem_address}"
 
     def update_shared_copies(self, mem_address):
-        for net_address in self.net_addresses:
-            if net_address == self.net_address:
-                continue
+        print(f"[UPDATE SHARED] in {self.net_address} for memory {mem_address}")
+        threads = [
+            th.Thread(target=self.update_shared_copy, args=(mem_address, net_address))
+            for net_address in self.net_addresses if net_address != self.net_address
+        ]
+        
+        for thread in threads:
+            thread.start()
 
-            s = self._connect_to_server(net_address)
-            utils.send_msg(
-                s,
-                (
-                    "serve_update_shared",
-                    mem_address,
-                    self.memory_manager.read(mem_address),
-                ),
-            )
-            data = utils.receive_msg(s)
-            self.shared_manager[mem_address] = data
-            self._disconnect_from_server(s, net_address)
+        for thread in threads:
+            thread.join()
+
         return f"[UPDATE SHARED] in {self.net_address} for memory {mem_address}"
+
+
+    def update_shared_copy(self, mem_address, net_address):
+        print(f"[UPDATE SINGLE SHARED] in {self.net_address} for memory {mem_address}")
+        s = self._connect_to_server(net_address)
+        utils.send_msg(
+            s,
+            (
+                "serve_update_shared",
+                mem_address,
+                self.memory_manager.read(mem_address),
+            ),
+        )
+        data = utils.receive_msg(s)
+        self.shared_manager[mem_address] = data
+        self._disconnect_from_server(s, net_address)
+        return f"[UPDATE SINGLE SHARED] in {self.net_address} for memory {mem_address}"    
 
     def handle_client(self, conn: socket.socket, addr: tuple[str, int]):
         print (f"[NEW CONNECTION] server {self.net_address} connected to {addr}")

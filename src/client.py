@@ -1,7 +1,7 @@
 import utils
 import socket
 import threading
-
+import random
 
 class Client:
     def __init__(
@@ -74,25 +74,32 @@ def main():
             client_5001.disconnect()
 
         if action == "5":
-            tries = 20
+            tries = 10
 
-            def f(num, client: Client):
+            def reader(num, client: Client):
                 client.connect()
+                print(f"thread {num} connected")
                 for _ in range(1):
-                    print(f"{num}: {client.read(100)}")
+                    print(f"{num:02d}: {client.read(100)}")
+                client.disconnect()
+
+            def writer(num, write_num, client: Client):
+                client.connect()
+                print(f"thread {num} connected")
+                for _ in range(1):
+                    print(f"{num:02d}: {client.write(100, f"{write_num}_opium")}")
                 client.disconnect()
 
             threads = [
-                threading.Thread(target=f, args=(idx, Client(("localhost", 5001))))
+                threading.Thread(target=reader, args=(idx, Client(("localhost", 5001))))
                 for idx in range(tries)
             ]
+            threads.append(threading.Thread(target=writer, args=(tries, i, Client(("localhost", 5001)))))
+
+            #random.shuffle(threads)
 
             for thread in threads:
                 thread.start()
-
-            client_5000.connect()
-            client_5000.write(100, f"{i}_opium")
-            client_5000.disconnect()
 
             for thread in threads:
                 thread.join()
