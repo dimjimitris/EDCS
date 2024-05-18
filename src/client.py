@@ -91,7 +91,7 @@ def main():
                 client.disconnect()
 
             threads = [
-                threading.Thread(target=reader, args=(idx, Client(("localhost", 5001))))
+                threading.Thread(target=reader, args=(idx, Client(("localhost", 5000))))
                 for idx in range(tries)
             ]
             threads.append(threading.Thread(target=writer, args=(tries, i, Client(("localhost", 5001)))))
