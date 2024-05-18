@@ -7,17 +7,17 @@ import utils
 class Server:
     def __init__(
         self,
-        server_address: tuple[str, int],
+        net_address: tuple[str, int],
         memory_ranges: list[tuple[int, int]],
         net_addresses: list[tuple[str, int]],
         dynamic: bool,
     ):
-        self.server_address = server_address
+        self.net_address = net_address
         self.memory_ranges = memory_ranges
         self.net_addresses = net_addresses
 
         # find index of address in addresses
-        self.memory_range = memory_ranges[net_addresses.index(self.server_address)]
+        self.memory_range = memory_ranges[net_addresses.index(net_address)]
         self.memory_manager = mm.MemoryManager(self.memory_range)
         self.shared_manager = {}
 
@@ -25,10 +25,10 @@ class Server:
         self.dynamic = dynamic
 
     def serve_read(self, mem_address, cascade):
-        print(f"[READ REQUEST] in {self.server_address} for memory {mem_address}")
+        print(f"[READ REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
-        if requested_net_address == self.server_address:
+        if requested_net_address == self.net_address:
             self.memory_manager.acquire_lock(mem_address)
             if not cascade:
                 self.memory_manager.set_status(mem_address, "S")
@@ -54,17 +54,17 @@ class Server:
         return data
 
     def serve_write(self, mem_address, data, cascade):
-        print(f"[WRITE REQUEST] in {self.server_address} for memory {mem_address}")
+        print(f"[WRITE REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
-        if requested_net_address == self.server_address:
+        if requested_net_address == self.net_address:
             self.memory_manager.acquire_lock(mem_address)
             self.memory_manager.write(mem_address, data)
             if not cascade: # home node
                 self.memory_manager.set_status(mem_address, "S")
             self.update_shared_copies(mem_address)
             self.memory_manager.release_lock(mem_address)
-            return f"[WRITE SUCCESS] in {self.server_address} for memory {mem_address} with data {data}"
+            return f"[WRITE SUCCESS] in {self.net_address} for memory {mem_address} with data {data}"
 
         if not cascade:
             return f"[WRONG WRITE REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
@@ -77,12 +77,12 @@ class Server:
         return data
 
     def serve_acquire_lock(self, mem_address, cascade):
-        print(f"[LOCK REQUEST] in {self.server_address} for memory {mem_address}")
+        print(f"[LOCK REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
-        if requested_net_address == self.server_address:
+        if requested_net_address == self.net_address:
             self.memory_manager.acquire_lock(mem_address)
-            return f"[LOCK ACQUIRED] in {self.server_address} for memory {mem_address}"
+            return f"[LOCK ACQUIRED] in {self.net_address} for memory {mem_address}"
 
         if not cascade:
             return f"[WRONG LOCK REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
@@ -96,12 +96,12 @@ class Server:
         return data
 
     def serve_release_lock(self, mem_address, cascade):
-        print(f"[LOCK RELEASE REQUEST] in {self.server_address} for memory {mem_address}")
+        print(f"[LOCK RELEASE REQUEST] in {self.net_address} for memory {mem_address}")
         requested_net_address = self._get_net_address(mem_address)
 
-        if requested_net_address == self.server_address:
+        if requested_net_address == self.net_address:
             self.memory_manager.release_lock(mem_address)
-            return f"[LOCK RELEASED] in {self.server_address} for memory {mem_address}"
+            return f"[LOCK RELEASED] in {self.net_address} for memory {mem_address}"
 
         if not cascade:
             return f"[WRONG RELEASE REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
@@ -115,16 +115,16 @@ class Server:
         return data
 
     def serve_update_shared(self, mem_address, data):
-        print(f"[UPDATE SHARED COPY] in {self.server_address} for memory {mem_address}")
+        print(f"[UPDATE SHARED COPY] in {self.net_address} for memory {mem_address}")
         if mem_address in self.shared_manager:
             self.shared_manager[mem_address] = data
-        return f"[UPDATE SHARED COPY] in {self.server_address} for memory {mem_address}"
+        return f"[UPDATE SHARED COPY] in {self.net_address} for memory {mem_address}"
 
     def update_shared_copies(self, mem_address):
-        print(f"[UPDATE SHARED] in {self.server_address} for memory {mem_address}")
+        print(f"[UPDATE SHARED] in {self.net_address} for memory {mem_address}")
         threads = [
             th.Thread(target=self.update_shared_copy, args=(mem_address, net_address))
-            for net_address in self.net_addresses if net_address != self.server_address
+            for net_address in self.net_addresses if net_address != self.net_address
         ]
         
         for thread in threads:
@@ -133,11 +133,11 @@ class Server:
         for thread in threads:
             thread.join()
 
-        return f"[UPDATE SHARED] in {self.server_address} for memory {mem_address}"
+        return f"[UPDATE SHARED] in {self.net_address} for memory {mem_address}"
 
 
     def update_shared_copy(self, mem_address, net_address):
-        print(f"[UPDATE SINGLE SHARED] in {self.server_address} for memory {mem_address}")
+        print(f"[UPDATE SINGLE SHARED] in {self.net_address} for memory {mem_address}")
         s = self._connect_to_server(net_address)
         utils.send_msg(
             s,
@@ -150,10 +150,10 @@ class Server:
         data = utils.receive_msg(s)
         self.shared_manager[mem_address] = data
         self._disconnect_from_server(s, net_address)
-        return f"[UPDATE SINGLE SHARED] in {self.server_address} for memory {mem_address}"    
+        return f"[UPDATE SINGLE SHARED] in {self.net_address} for memory {mem_address}"    
 
     def handle_client(self, conn: socket.socket, addr: tuple[str, int]):
-        print (f"[NEW CONNECTION] server {self.server_address} connected to {addr}")
+        print (f"[NEW CONNECTION] server {self.net_address} connected to {addr}")
         connected = True
 
         while connected:
@@ -179,13 +179,13 @@ class Server:
                 utils.send_msg(conn, data)
 
         conn.close()
-        print(f"[DISCONNECTED] server {self.server_address} disconnected from {addr}")
+        print(f"[DISCONNECTED] server {self.net_address} disconnected from {addr}")
 
     def serve(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(self.server_address)
+            s.bind(self.net_address)
             s.listen()
-            print(f"[LISTENING] server {self.server_address} is listening...")
+            print(f"[LISTENING] server {self.net_address} is listening...")
             while True:
                 conn, addr = s.accept()
                 thread = th.Thread(target=self.handle_client, args=(conn, addr))
@@ -202,7 +202,7 @@ class Server:
             return False
 
         for net_address in self.net_addresses:
-            if net_address == self.server_address:
+            if net_address == self.net_address:
                 continue
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(net_address)
