@@ -74,12 +74,12 @@ def main():
             client_5001.disconnect()
 
         if action == "5":
-            tries = 10
+            tries = 20
 
             def f(num, client: Client):
                 client.connect()
                 for _ in range(1):
-                    print(client.read(100))
+                    print(f"{num}: {client.read(100)}")
                 client.disconnect()
 
             threads = [
@@ -97,6 +97,10 @@ def main():
             for thread in threads:
                 thread.join()
 
+        if action == "6":
+            client_5001.connect()
+            print(client_5001.read(100))
+            client_5001.disconnect()
 
 if __name__ == "__main__":
     main()

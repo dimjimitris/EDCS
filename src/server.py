@@ -43,7 +43,7 @@ class Server:
             return data
 
         if not cascade:
-            return None
+            return f"[WRONG READ REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
 
         # request from other server
         s = self._connect_to_server(requested_net_address)
@@ -59,31 +59,31 @@ class Server:
         if requested_net_address == self.net_address:
             self.memory_manager.acquire_lock(mem_address)
             self.memory_manager.write(mem_address, data)
-            if not cascade:
+            if not cascade: # home node
                 self.memory_manager.set_status(mem_address, "S")
             self.update_shared_copies(mem_address)
             self.memory_manager.release_lock(mem_address)
-            return True
+            return f"[WRITE SUCCESS] in {self.net_address} for memory {mem_address} with data {data}"
 
         if not cascade:
-            return False
+            return f"[WRONG WRITE REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
 
         # request from other server
         s = self._connect_to_server(requested_net_address)
         utils.send_msg(s, ("serve_write", mem_address, data, False))
         data = utils.receive_msg(s)
         self._disconnect_from_server(s, requested_net_address)
-        return True
+        return data
 
     def serve_acquire_lock(self, mem_address, cascade):
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
             self.memory_manager.acquire_lock(mem_address)
-            return True
+            return f"[LOCK ACQUIRED] in {self.net_address} for memory {mem_address}"
 
         if not cascade:
-            return False
+            return f"[WRONG LOCK REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
 
         # request from other server
         s = self._connect_to_server(requested_net_address)
@@ -91,17 +91,17 @@ class Server:
         data = utils.receive_msg(s)
         self._disconnect_from_server(s, requested_net_address)
 
-        return True
+        return data
 
     def serve_release_lock(self, mem_address, cascade):
         requested_net_address = self._get_net_address(mem_address)
 
         if requested_net_address == self.net_address:
             self.memory_manager.release_lock(mem_address)
-            return True
+            return f"[LOCK RELEASED] in {self.net_address} for memory {mem_address}"
 
         if not cascade:
-            return False
+            return f"[WRONG RELEASE REQUEST] used {requested_net_address} as a home address for memory {mem_address} but is not valid"
 
         # request from other server
         s = self._connect_to_server(requested_net_address)
@@ -109,7 +109,7 @@ class Server:
         data = utils.receive_msg(s)
         self._disconnect_from_server(s, requested_net_address)
 
-        return True
+        return data
 
     def serve_update_shared(self, mem_address, data):
         if mem_address in self.shared_manager:
@@ -132,10 +132,10 @@ class Server:
             data = utils.receive_msg(s)
             self.shared_manager[mem_address] = data
             self._disconnect_from_server(s, net_address)
+        return f"[UPDATE SHARED] in {self.net_address} for memory {mem_address}"
 
     def handle_client(self, conn: socket.socket, addr: tuple[str, int]):
-        print(f"[NEW CONNECTION] {addr} connected.")
-
+        print (f"[NEW CONNECTION] server {self.net_address} connected to {addr}")
         connected = True
 
         while connected:
@@ -157,21 +157,17 @@ class Server:
                 elif data[0] == "serve_release_lock":
                     data = self.serve_release_lock(data[1], data[2])
                 elif data[0] == "serve_update_shared":
-                    self.serve_update_shared(data[1], data[2])
-                    data = True
-                print("--------------------")
-                print(f"[DATA] {data}")
-                print("--------------------")
+                    data = self.serve_update_shared(data[1], data[2])
                 utils.send_msg(conn, data)
 
-        print(f"[DISCONNECTED] {addr} disconnected from {self.net_address}.")
         conn.close()
+        print(f"[DISCONNECTED] server {self.net_address} disconnected from {addr}")
 
     def serve(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(self.net_address)
             s.listen()
-            print(f"[LISTENING] Server is listening on {self.net_address}")
+            print(f"[LISTENING] server {self.net_address} is listening...")
             while True:
                 conn, addr = s.accept()
                 thread = th.Thread(target=self.handle_client, args=(conn, addr))
@@ -193,7 +189,6 @@ class Server:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(net_address)
             self.connections_to_other_servers[net_address] = s
-            print(f"server {self.net_address} connected to {net_address}")
 
     def _connect_to_server(self, requested_net_address):
         # request from other server
@@ -205,11 +200,9 @@ class Server:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(requested_net_address)
                 self.connections_to_other_servers[requested_net_address] = s
-                print(f"server {self.net_address} connected to {requested_net_address}")
         else:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(requested_net_address)
-            print(f"server {self.net_address} connected to {requested_net_address}")
         return s
 
     def _disconnect_from_server(self, s: socket.socket, requested_net_address):
@@ -217,9 +210,6 @@ class Server:
             utils.send_msg(s, ("disconnect",))
             utils.receive_msg(s)
             s.close()
-            print(
-                f"server {requested_net_address} disconnected from {self.net_address}"
-            )
 
 
 def start_server_process(
