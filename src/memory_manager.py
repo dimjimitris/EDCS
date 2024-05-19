@@ -1,6 +1,5 @@
 import memory_primitives as mp
 
-import comm_utils
 import time_utils
 
 class MemoryManager:
@@ -21,6 +20,8 @@ class MemoryManager:
         self.locks = {
             i: mp.LockItem() for i in range(self.memory_range[0], self.memory_range[1])
         }
+
+        self.copy_holders : dict[int, set[tuple[str, int]]] = {}
 
     def read_memory(self, address):
         """
@@ -109,4 +110,52 @@ class MemoryManager:
         if address not in self.memory:
             return False
         self.memory[address].status = status
+        return True
+
+    def get_copy_holders(self, address):
+        """
+        Input:
+        - address: the address to get copy holders for
+
+        Return:
+        - the set of copy holders for the address
+        """
+        if address not in self.memory:
+            return set()
+        if address not in self.copy_holders:
+            return set()
+        return self.copy_holders[address]
+
+    def add_copy_holder(self, address, holder):
+        """
+        Input:
+        - address: the address to add holder for
+        - holder: the holder to add
+
+        Return:
+        - True if holder is added, False otherwise
+        """
+        if address not in self.memory:
+            return False
+        if address not in self.copy_holders:
+            self.copy_holders[address] = set()
+        self.copy_holders[address].add(holder)
+        return True
+    
+    def remove_copy_holder(self, address, holder):
+        """
+        Input:
+        - address: the address to remove holder for
+        - holder: the holder to remove
+
+        Return:
+        - True if holder is removed, False otherwise
+        """
+        if address not in self.memory:
+            return False
+        if address not in self.copy_holders:
+            return False
+        self.copy_holders[address].remove(holder)
+        if len(self.copy_holders[address]) == 0:
+            self.memory[address].status = "E"
         return True

@@ -118,5 +118,15 @@ def main():
             print(client_5001.read(100))
             client_5001.disconnect()
 
+        if action == "7":
+            client_5000.connect()
+            print(client_5000.write(100, "opium"))
+            client_5000.disconnect()
+
+        if action == "8":
+            client_5000.connect()
+            print(client_5000.read(100))
+            client_5000.disconnect()
+
 if __name__ == "__main__":
     main()

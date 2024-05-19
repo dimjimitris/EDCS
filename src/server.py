@@ -134,6 +134,7 @@ class Server:
                 return {"status": "error", "message": "Failed to acquire lock"}
             if not cascade:
                 self.memory_manager.set_status(memory_address, "S")
+                self.memory_manager.add_copy_holder(memory_address, client_address)
             data = self.memory_manager.read_memory(memory_address)
             self.memory_manager.release_lock(memory_address, counter, False)
             data = data.json()
@@ -241,6 +242,7 @@ class Server:
             prev_status = self.memory_manager.read_memory(memory_address).status
             if not cascade:
                 self.memory_manager.set_status(memory_address, "S")
+                self.memory_manager.add_copy_holder(memory_address, client_address)
             self.memory_manager.write_memory(memory_address, data)
             # update shared copies in the system, if they exist!
             if prev_status == "S":
@@ -472,6 +474,7 @@ class Server:
         comm_utils.receive_message(s)
         s.close()
 
+    # TODO: On communication failure, remove the copy holder from the memory manager
     def _update_shared_copy(
         self,
         client_address: tuple[str, int],
@@ -505,12 +508,13 @@ class Server:
         print(
             f"[UPDATE ALL CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
+
         threads = [
             th.Thread(
                 target=self._update_shared_copy,
                 args=(client_address, memory_address, target_address),
             )
-            for target_address in self.net_addresses
+            for target_address in self.memory_manager.get_copy_holders(memory_address)
             if target_address != self.server_address
         ]
 
