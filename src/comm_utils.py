@@ -35,12 +35,6 @@ def send_message(client_socket: socket.socket, message):
     except Exception as e:
         print(f"[ERROR] sending message: {e}")
 
-def get_time():
-    #t = dt.datetime.now(dt.UTC)
-    #t = t.timestamp() * 1_000_000
-    #return int(round(t))
-    return time.time_ns()
-
 def test():
     import threading as th
 

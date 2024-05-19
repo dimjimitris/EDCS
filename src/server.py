@@ -4,7 +4,7 @@ import datetime as dt
 
 import memory_manager as mm
 import memory_primitives as mp
-import utils
+import comm_utils
 
 
 class Server:
@@ -54,7 +54,7 @@ class Server:
         connected = True
 
         while connected:
-            message = utils.receive_message(client_socket)
+            message = comm_utils.receive_message(client_socket)
             if not message:
                 continue
 
@@ -96,7 +96,7 @@ class Server:
                     message["istatus"],
                     message["tag"],
                 )
-            utils.send_message(client_socket, return_data)
+            comm_utils.send_message(client_socket, return_data)
 
         print(f"[DISCONNECTED] server {self.server_address}, client {client_address}.")
         client_socket.close()
@@ -194,10 +194,10 @@ class Server:
             }
 
         s = self._connect_to_server(read_host_address)
-        utils.send_message(
+        comm_utils.send_message(
             s, {"type": "serve_read", "address": memory_address, "cascade": False}
         )
-        data = utils.receive_message(s)
+        data = comm_utils.receive_message(s)
         self.shared_cache[memory_address] = mp.MemoryItem(
             data["data"], data["istatus"], data["tag"]
         )
@@ -262,7 +262,7 @@ class Server:
             }
 
         s = self._connect_to_server(write_host_address)
-        utils.send_message(
+        comm_utils.send_message(
             s,
             {
                 "type": "serve_write",
@@ -271,7 +271,7 @@ class Server:
                 "cascade": False,
             },
         )
-        response = utils.receive_message(s)
+        response = comm_utils.receive_message(s)
         self._disconnect_from_server(s)
         print(
             f"[WRITE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
@@ -325,7 +325,7 @@ class Server:
             }
 
         s = self._connect_to_server(lock_host_address)
-        utils.send_message(
+        comm_utils.send_message(
             s,
             {
                 "type": "serve_acquire_lock",
@@ -335,7 +335,7 @@ class Server:
             },
         )
 
-        response = utils.receive_message(s)
+        response = comm_utils.receive_message(s)
         self._disconnect_from_server(s)
         print(
             f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
@@ -389,7 +389,7 @@ class Server:
             }
 
         s = self._connect_to_server(lock_host_address)
-        utils.send_message(
+        comm_utils.send_message(
             s,
             {
                 "type": "serve_release_lock",
@@ -399,7 +399,7 @@ class Server:
                 "cascade": False,
             },
         )
-        response = utils.receive_message(s)
+        response = comm_utils.receive_message(s)
         self._disconnect_from_server(s)
         print(
             f"[RELEASE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
@@ -468,8 +468,8 @@ class Server:
         Return:
         - None
         """
-        utils.send_message(s, {"type": "disconnect"})
-        utils.receive_message(s)
+        comm_utils.send_message(s, {"type": "disconnect"})
+        comm_utils.receive_message(s)
         s.close()
 
     def _update_shared_copy(
@@ -482,7 +482,7 @@ class Server:
             f"[UPDATE SINGLE CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}, target {target_address}"
         )
         s = self._connect_to_server(target_address)
-        utils.send_message(
+        comm_utils.send_message(
             s,
             {
                 "type": "serve_update_cache",
@@ -490,7 +490,7 @@ class Server:
                 **self.memory_manager.read_memory(memory_address).json(),
             },
         )
-        utils.receive_message(s)
+        comm_utils.receive_message(s)
         self._disconnect_from_server(s)
         print(
             f"[UPDATE SINGLE CACHE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, target {target_address}"

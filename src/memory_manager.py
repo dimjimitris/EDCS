@@ -1,6 +1,7 @@
 import memory_primitives as mp
 
-import utils
+import comm_utils
+import time_utils
 
 class MemoryManager:
     def __init__(
@@ -61,7 +62,7 @@ class MemoryManager:
         - tag: tag of the memory item
         """
         if address not in self.locks:
-            return False, -1, utils.get_time(), -1
+            return False, -1, time_utils.get_time(), -1
         ret_val, counter, time = self.locks[address].acquire_lock(lease_time)
         return (
             ret_val,
@@ -84,7 +85,7 @@ class MemoryManager:
         - tag: tag of the memory item
         """
         if address not in self.locks:
-            return False, -1, utils.get_time(), -1
+            return False, -1, time_utils.get_time(), -1
 
         ret_val, counter, time = self.locks[address].release_lock(
             lease_counter, increment_counter

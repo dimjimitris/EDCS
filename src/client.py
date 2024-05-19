@@ -1,4 +1,4 @@
-import utils
+import comm_utils
 import socket
 import threading
 import random
@@ -15,28 +15,28 @@ class Client:
         self.s.connect(self.server_address)
 
     def disconnect(self):
-        utils.send_message(self.s, {"type": "disconnect"})
-        data = utils.receive_message(self.s)
+        comm_utils.send_message(self.s, {"type": "disconnect"})
+        data = comm_utils.receive_message(self.s)
         self.s.close()
         return data
 
     def write(self, mem_address, data):
-        utils.send_message(self.s, {
+        comm_utils.send_message(self.s, {
             "type": "serve_write",
             "address": mem_address,
             "data": data,
             "cascade": True,
         })
-        data = utils.receive_message(self.s)
+        data = comm_utils.receive_message(self.s)
         return data
 
     def read(self, mem_address):
-        utils.send_message(self.s, {
+        comm_utils.send_message(self.s, {
             "type": "serve_read",
             "address": mem_address,
             "cascade": True,
         })
-        data = utils.receive_message(self.s)
+        data = comm_utils.receive_message(self.s)
         return data
 
 

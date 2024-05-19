@@ -1,6 +1,7 @@
 import threading as th
 
-import utils
+import comm_utils
+import time_utils
 
 
 class MemoryItem:
@@ -8,7 +9,7 @@ class MemoryItem:
         self,
         data,
         status,
-        tag=utils.get_time(),
+        tag=time_utils.get_time(),
     ):
         self.data = data
         self.status = status
@@ -29,7 +30,7 @@ class LockItem:
     def __init__(self):
         self.lock = th.Lock()
         self.condition = th.Condition()
-        self.counter = utils.get_time()
+        self.counter = time_utils.get_time()
 
     def acquire_lock(self, lease_time=0):
         """
@@ -53,7 +54,7 @@ class LockItem:
         if ret_val and lease_time > 0:
             th.Timer(lease_time, self.release_lock, args=(self.counter, True)).start()
 
-        return ret_val, counter, utils.get_time()
+        return ret_val, counter, time_utils.get_time()
     
     def release_lock(self, lease_counter, increment_counter=False):
         """
@@ -78,4 +79,4 @@ class LockItem:
             else:
                 ret_val = False
 
-        return ret_val, counter, utils.get_time()
+        return ret_val, counter, time_utils.get_time()
