@@ -23,6 +23,7 @@ class Client:
     def write(self, mem_address, data):
         comm_utils.send_message(self.s, {
             "type": "serve_write",
+            "server_address": ("", -1),
             "address": mem_address,
             "data": data,
             "cascade": True,
@@ -33,6 +34,7 @@ class Client:
     def read(self, mem_address):
         comm_utils.send_message(self.s, {
             "type": "serve_read",
+            "server_address": ("", -1),
             "address": mem_address,
             "cascade": True,
         })

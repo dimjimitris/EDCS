@@ -64,11 +64,15 @@ class Server:
                 return_data = "disconnecting"
             elif message["type"] == "serve_read":
                 return_data = self.serve_read(
-                    client_address, message["address"], message["cascade"]
+                    client_address,
+                    message["server_address"],
+                    message["address"],
+                    message["cascade"],
                 )
             elif message["type"] == "serve_write":
                 return_data = self.serve_write(
                     client_address,
+                    message["server_address"],
                     message["address"],
                     message["data"],
                     message["cascade"],
@@ -104,6 +108,7 @@ class Server:
     def serve_read(
         self,
         client_address: tuple[str, int],
+        client_serving_address: tuple[str, int],
         memory_address: int,
         cascade: bool,
         time_out=1,
@@ -118,6 +123,7 @@ class Server:
         Return:
         - response: the response to the read request
         """
+        client_serving_address = tuple(client_serving_address)
         print(
             f"[READ REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
@@ -134,7 +140,9 @@ class Server:
                 return {"status": "error", "message": "Failed to acquire lock"}
             if not cascade:
                 self.memory_manager.set_status(memory_address, "S")
-                self.memory_manager.add_copy_holder(memory_address, client_address)
+                self.memory_manager.add_copy_holder(
+                    memory_address, client_serving_address
+                )
             data = self.memory_manager.read_memory(memory_address)
             self.memory_manager.release_lock(memory_address, counter, False)
             data = data.json()
@@ -196,7 +204,13 @@ class Server:
 
         s = self._connect_to_server(read_host_address)
         comm_utils.send_message(
-            s, {"type": "serve_read", "address": memory_address, "cascade": False}
+            s,
+            {
+                "type": "serve_read",
+                "server_address": self.server_address,
+                "address": memory_address,
+                "cascade": False,
+            },
         )
         data = comm_utils.receive_message(s)
         self.shared_cache[memory_address] = mp.MemoryItem(
@@ -211,6 +225,7 @@ class Server:
     def serve_write(
         self,
         client_address: tuple[str, int],
+        client_serving_address: tuple[str, int],
         memory_address: int,
         data,
         cascade: bool,
@@ -218,6 +233,7 @@ class Server:
         """
         Input:
         - client_address: the address of the client requesting the write
+        - client_serving_address: the address of the client that serves requests incoming to that client
         - memory_address: the memory address to write to
         - data: the data to write
         - cascade: if True, cascade the request to the server that contains the memory address
@@ -225,6 +241,7 @@ class Server:
         Return:
         - response: the response to the write request
         """
+        client_serving_address = tuple(client_serving_address)
         print(
             f"[WRITE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
@@ -242,7 +259,9 @@ class Server:
             prev_status = self.memory_manager.read_memory(memory_address).status
             if not cascade:
                 self.memory_manager.set_status(memory_address, "S")
-                self.memory_manager.add_copy_holder(memory_address, client_address)
+                self.memory_manager.add_copy_holder(
+                    memory_address, client_serving_address
+                )
             self.memory_manager.write_memory(memory_address, data)
             # update shared copies in the system, if they exist!
             if prev_status == "S":
@@ -268,6 +287,7 @@ class Server:
             s,
             {
                 "type": "serve_write",
+                "server_address": self.server_address,
                 "address": memory_address,
                 "data": data,
                 "cascade": False,
@@ -529,6 +549,7 @@ class Server:
         )
 
         return {"status": "success"}
+
 
 def start_server_process(
     net_address: tuple[str, int],
