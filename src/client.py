@@ -15,19 +15,28 @@ class Client:
         self.s.connect(self.server_address)
 
     def disconnect(self):
-        utils.send_msg(self.s, ("disconnect",))
-        data = utils.receive_msg(self.s)
+        utils.send_message(self.s, {"type": "disconnect"})
+        data = utils.receive_message(self.s)
         self.s.close()
         return data
 
     def write(self, mem_address, data):
-        utils.send_msg(self.s, ("serve_write", mem_address, data, True))
-        data = utils.receive_msg(self.s)
+        utils.send_message(self.s, {
+            "type": "serve_write",
+            "address": mem_address,
+            "data": data,
+            "cascade": True,
+        })
+        data = utils.receive_message(self.s)
         return data
 
     def read(self, mem_address):
-        utils.send_msg(self.s, ("serve_read", mem_address, True))
-        data = utils.receive_msg(self.s)
+        utils.send_message(self.s, {
+            "type": "serve_read",
+            "address": mem_address,
+            "cascade": True,
+        })
+        data = utils.receive_message(self.s)
         return data
 
 
