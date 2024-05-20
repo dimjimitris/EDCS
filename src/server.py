@@ -569,6 +569,7 @@ class Server:
         log_msg(f"[UPDATE ALL CACHE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}")
         return {"status": gv.SUCCESS, "message": "cache updated"}
 
+# just for testing purposes...
 def start_server_process(
     net_address: tuple[str, int],
     memory_range: tuple[int, int],
