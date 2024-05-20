@@ -111,7 +111,8 @@ def main():
                 client.connect()
                 print(f"thread {num} connected")
                 for _ in range(1):
-                    print(f"{num:02d}: {client.write(100, f"{write_num}_opium")}")
+                    write_str = f"{write_num}_opium"
+                    print(f"{num:02d}: {client.write(100, write_str)}")
                 client.disconnect()
 
             threads = [
