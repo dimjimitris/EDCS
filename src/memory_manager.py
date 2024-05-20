@@ -85,13 +85,14 @@ class MemoryManager:
         if address not in self.locks:
             return False, -1, -1
 
+        tag = self.memory[address].tag
         ret_val, counter = self.locks[address].release_lock(
             lease_counter, increment_counter
         )
         return (
             ret_val,
             counter,
-            self.memory[address].tag,
+            tag,
         )
     
     def set_status(self, address, status):
