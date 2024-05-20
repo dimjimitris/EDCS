@@ -171,10 +171,12 @@ class Server:
                     self.shared_cache.pop(memory_address)
                     return {"status": gv.ERROR, "message": "Failed to release lock"}
 
-                if rel_lock_val["tag"] != self.shared_cache[memory_address].tag: # this error might cause issues...
-                    # I'm not even sure this error is at all possible
+                # fetch data from server
+                if rel_lock_val["tag"] != self.shared_cache[memory_address].tag:
                     self.shared_cache.pop(memory_address)
-                    return {"status": gv.ERROR, "message": "Tag mismatch"}
+                    return self.serve_read(
+                        client_address, copy_holder_ip, copy_holder_port, memory_address, cascade
+                    )
 
                 log_msg(f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {return_value}")
                 return {
@@ -183,12 +185,9 @@ class Server:
                     **return_value,
                 }
             else: # give up and then just communicate with the server
-                self.serve_release_lock(
-                    self.server_address,
-                    memory_address,
-                    ac_lock_val["counter"],
-                    True,
-                    True,
+                self.shared_cache.pop(memory_address)
+                return self.serve_read(
+                    client_address, copy_holder_ip, copy_holder_port, memory_address, cascade
                 )
 
         if not cascade:
