@@ -3,6 +3,8 @@ import socket
 import threading
 import random
 
+import global_variables as gv
+
 class Client:
     def __init__(
         self,
@@ -12,6 +14,7 @@ class Client:
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.s.settimeout(gv.CONNECTION_TIMEOUT)
         self.s.connect(self.server_address)
 
     def disconnect(self):
