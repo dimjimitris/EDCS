@@ -1,6 +1,5 @@
 import threading as th
 
-import comm_utils
 import time_utils
 
 
@@ -40,7 +39,6 @@ class LockItem:
         Return:
         - ret_val: True if lock is acquired, False otherwise
         - counter: counter of the lock
-        - time: time when the lock was acquired
         """
         ret_val, counter = None, -1
         with self.condition:
@@ -54,7 +52,7 @@ class LockItem:
         if ret_val and lease_time > 0:
             th.Timer(lease_time, self.release_lock, args=(self.counter, True)).start()
 
-        return ret_val, counter, time_utils.get_time()
+        return ret_val, counter
     
     def release_lock(self, lease_counter, increment_counter=False):
         """
@@ -65,7 +63,6 @@ class LockItem:
         Return:
         - ret_val: True if lock is released, False if it was already released
         - counter: counter of the lock
-        - time: time when the lock was released
         """
         ret_val, counter = None, -1
         with self.condition:
@@ -79,4 +76,4 @@ class LockItem:
             else:
                 ret_val = False
 
-        return ret_val, counter, time_utils.get_time()
+        return ret_val, counter

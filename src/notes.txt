@@ -1,0 +1,62 @@
+message:
+- type
+- args:
+    - serve_read:
+        - copy_holder_address
+        - address (memory)
+        - cascade
+    - serve_write:
+        - copy_holder_address
+        - address (memory)
+        - data (to be written)
+        - cascade
+    - serve_acquire_lock:
+        - address (memory)
+        - timeout (in seconds)
+        - cascade
+    - serve_release_lock:
+        - address (memory)
+        - lease_counter (for comparison)
+        - increment_counter (whether to increment the counter when releasing)
+        - cascade
+    - serve_update_cache:
+        - address
+        - data
+        - istatus
+        - tag
+    All of these carry an aditional parameter of "client_address" which is the
+    address we are communicating with the current connection.
+
+possible errors:
+    - disconnect:
+        - connection error
+    - serve_read
+        - connection error
+        - copy_holder_address not in net_addresses
+        - address out of range
+        - cascade is False and server is not the home server
+    - serve_write
+        - connection error
+        - copy_holder_address not in net_address
+        - address out of range
+        - data not of correct type
+        - cascade is False and server is not the home server
+    - serve_acquire_lock
+        - connection error
+        - address out of range
+        - timeout is negative
+        - cascade is False and server is not the home server
+    - serve_release_lock
+        - connection error
+        - address out of range
+        - lease_counter not an int?
+        - increment_counter is not >= 0
+        - cascade is False and server is not the home server
+    - serve_update_cache
+        - connection error
+        - address is not in shared memory (maybe it doesn't matter)
+        - data not of correct type (maybe it doesn't matter)
+        - istatus should be "S"
+        - tag not an integer (maybe it doesn't matter)
+
+client_address is just used to print log messages!

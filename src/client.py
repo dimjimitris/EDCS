@@ -23,10 +23,9 @@ class Client:
     def write(self, mem_address, data):
         comm_utils.send_message(self.s, {
             "type": "serve_write",
-            "server_address": ("", -1),
-            "address": mem_address,
-            "data": data,
-            "cascade": True,
+            "args": [
+                "", -1, mem_address, data, True,
+            ]
         })
         data = comm_utils.receive_message(self.s)
         return data
@@ -34,9 +33,9 @@ class Client:
     def read(self, mem_address):
         comm_utils.send_message(self.s, {
             "type": "serve_read",
-            "server_address": ("", -1),
-            "address": mem_address,
-            "cascade": True,
+            "args": [
+                "", -1, mem_address, True,
+            ]
         })
         data = comm_utils.receive_message(self.s)
         return data
@@ -53,38 +52,49 @@ def main():
 
         if action == "exit":
             break
-
+        
         if action == "1":
             client_5000.connect()
-            client_5000.write(0, "hello")
             print(client_5000.read(0))
             client_5000.disconnect()
 
         if action == "2":
             client_5001.connect()
-            client_5001.write(100, "world")
             print(client_5001.read(100))
             client_5001.disconnect()
 
         if action == "3":
             client_5000.connect()
-            client_5001.connect()
-            print(client_5000.read(100))
-            client_5000.write(100, f"{i}")
-            print(client_5001.read(100))
+            print(client_5000.write(0, f"{i}_opium"))
             client_5000.disconnect()
-            client_5001.disconnect()
 
         if action == "4":
-            client_5000.connect()
             client_5001.connect()
-            print(client_5000.read(100))
-            client_5000.write(100, "everything")
-            print(client_5001.read(100))
-            client_5000.disconnect()
+            print(client_5001.write(100, f"{i}_opium"))
             client_5001.disconnect()
 
         if action == "5":
+            client_5000.connect()
+            print(client_5000.read(100))
+            client_5000.disconnect()
+
+        if action == "6":
+            client_5001.connect()
+            print(client_5001.read(0))
+            client_5001.disconnect()
+
+        if action == "7":
+            client_5000.connect()
+            print(client_5000.write(100, f"{i}_opium"))
+            client_5000.disconnect()
+
+        if action == "8":
+            client_5001.connect()
+            print(client_5001.write(0, f"{i}_opium"))
+            client_5001.disconnect()
+
+
+        if action == "9":
             tries = 10
 
             def reader(num, client: Client):
@@ -114,21 +124,6 @@ def main():
 
             for thread in threads:
                 thread.join()
-
-        if action == "6":
-            client_5001.connect()
-            print(client_5001.read(100))
-            client_5001.disconnect()
-
-        if action == "7":
-            client_5000.connect()
-            print(client_5000.write(100, "opium"))
-            client_5000.disconnect()
-
-        if action == "8":
-            client_5000.connect()
-            print(client_5000.read(100))
-            client_5000.disconnect()
 
 if __name__ == "__main__":
     main()

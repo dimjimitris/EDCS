@@ -1,7 +1,5 @@
 import memory_primitives as mp
 
-import time_utils
-
 class MemoryManager:
     def __init__(
         self,
@@ -59,16 +57,14 @@ class MemoryManager:
         Return:
         - ret_val: True if lock is acquired, False otherwise
         - counter: counter of the lock
-        - time: time when the lock was acquired
         - tag: tag of the memory item
         """
         if address not in self.locks:
-            return False, -1, time_utils.get_time(), -1
-        ret_val, counter, time = self.locks[address].acquire_lock(lease_time)
+            return False, -1, -1
+        ret_val, counter = self.locks[address].acquire_lock(lease_time)
         return (
             ret_val,
             counter,
-            time,
             self.memory[address].tag,
         )
 
@@ -82,19 +78,17 @@ class MemoryManager:
         Return:
         - ret_val: True if lock is released, False if it was already released
         - counter: counter of the lock
-        - time: time when the lock was released
         - tag: tag of the memory item
         """
         if address not in self.locks:
-            return False, -1, time_utils.get_time(), -1
+            return False, -1, -1
 
-        ret_val, counter, time = self.locks[address].release_lock(
+        ret_val, counter = self.locks[address].release_lock(
             lease_counter, increment_counter
         )
         return (
             ret_val,
             counter,
-            time,
             self.memory[address].tag,
         )
     
@@ -140,6 +134,7 @@ class MemoryManager:
         if address not in self.copy_holders:
             self.copy_holders[address] = set()
         self.copy_holders[address].add(holder)
+        self.memory[address].status = "S"
         return True
     
     def remove_copy_holder(self, address, holder):
