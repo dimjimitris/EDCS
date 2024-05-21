@@ -10,7 +10,7 @@ class Client:
     def __init__(self, server_address):
         self.server_address = server_address
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.settimeout(3 * gv.CONNECTION_TIMEOUT)
+        #self.s.settimeout(3 * gv.CONNECTION_TIMEOUT)
         self.s.connect(self.server_address)
 
     def disconnect(self):
@@ -183,6 +183,17 @@ def test():
             for thread in threads:
                 thread.join()
 
+def test2():
+    while True:
+        server_index, op, addr, data = input("Give input:").split()
+        server_index = int(server_index)
+        addr = int(addr)
+        client = Client(gv.SERVERS[server_index % 3])
+        if op == "read":
+            print(client.serve_read(addr))
+        elif op == "write":
+            print(client.serve_write(addr, data))
+
 
 if __name__ == "__main__":
-    test()
+    test2()

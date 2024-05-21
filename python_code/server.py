@@ -383,7 +383,7 @@ class Server:
             memory_address,
             host_server,
             "serve_release_lock",
-            [memory_address, ltag],
+            [memory_address, ltag, False],
             "RELEASE LOCK",
         )
 
@@ -419,6 +419,7 @@ class Server:
             response = self._update_next_copy(
                 address_chain, next_address, memory_address, data, status, wtag
             )
+            print(f"[UPDATE CACHE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}")
             return response
 
         return {
@@ -470,11 +471,8 @@ class Server:
         status: str,
         wtag: int,
     ):
-        if memory_address in self.shared_cache:
-            self.shared_cache[memory_address] = mp.MemoryItem(data, status, wtag)
-            return True
-        else:
-            return False
+        self.shared_cache[memory_address] = mp.MemoryItem(data, status, wtag)
+        return True
 
     def _update_next_copy(
         self,
