@@ -41,6 +41,7 @@ class Server:
         - None
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             server_socket.bind(self.server_address)
             server_socket.listen()
 
@@ -107,6 +108,7 @@ class Server:
         log_msg(
             f"[DISCONNECTED] server {self.server_address}, client {client_address}."
         )
+        #client_socket.shutdown(socket.SHUT_RDWR)
         client_socket.close()
 
     def serve_read(
@@ -662,6 +664,7 @@ class Server:
             comm_utils.send_message(server_socket, {"type": "disconnect"})
             comm_utils.receive_message(server_socket)
         finally:
+            #server_socket.shutdown(socket.SHUT_RDWR)
             server_socket.close()
 
 
