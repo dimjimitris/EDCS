@@ -1,20 +1,11 @@
-import comm_utils
+import argparse
 import socket
-import threading
-import random
-
-import global_variables as gv
+import comm_utils
 
 class Client:
-    def __init__(
-        self,
-        server_address,
-    ):
+    def __init__(self, server_address):
         self.server_address = server_address
-
-    def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.s.settimeout(gv.CONNECTION_TIMEOUT)
         self.s.connect(self.server_address)
 
     def disconnect(self):
@@ -23,7 +14,7 @@ class Client:
         self.s.close()
         return data
 
-    def write(self, mem_address, data):
+    def serve_write(self, mem_address, data):
         comm_utils.send_message(self.s, {
             "type": "serve_write",
             "args": [
@@ -33,7 +24,7 @@ class Client:
         data = comm_utils.receive_message(self.s)
         return data
 
-    def read(self, mem_address):
+    def serve_read(self, mem_address):
         comm_utils.send_message(self.s, {
             "type": "serve_read",
             "args": [
@@ -43,106 +34,59 @@ class Client:
         data = comm_utils.receive_message(self.s)
         return data
 
-def main():
-    client_5000 = Client(("localhost", 5000))
-    client_5001 = Client(("localhost", 5001))
-    client_5002 = Client(("localhost", 5002))
-
-    i = 42
-    while True:
-        i = i + 1
-        action = str(input("Enter action: "))
-
-        if action == "exit":
-            break
-        
-        if action == "1":
-            client_5000.connect()
-            print(client_5000.read(0))
-            client_5000.disconnect()
-
-        if action == "2":
-            client_5001.connect()
-            print(client_5001.read(100))
-            client_5001.disconnect()
-
-        if action == "3":
-            client_5002.connect()
-            print(client_5002.read(200))
-            client_5002.disconnect()
-
-        if action == "4":
-            client_5000.connect()
-            print(client_5000.write(0, f"{i}_opium"))
-            client_5000.disconnect()
-
-        if action == "5":
-            client_5001.connect()
-            print(client_5001.write(100, f"{i}_opium"))
-            client_5001.disconnect()
-
-        if action == "6":
-            client_5002.connect()
-            print(client_5002.write(200, f"{i}_opium"))
-            client_5002.disconnect()
-
-        if action == "7":
-            client_5000.connect()
-            print(client_5000.read(100))
-            client_5000.disconnect()
-
-        if action == "8":
-            client_5000.connect()
-            print(client_5000.read(200))
-            client_5000.disconnect()
-
-        if action == "9":
-            client_5001.connect()
-            print(client_5001.read(0))
-            client_5001.disconnect()
-
-        if action == "10":
-            client_5001.connect()
-            print(client_5001.read(200))
-            client_5001.disconnect()
-
-        if action == "11":
-            client_5001.connect()
-            print(client_5001.write(0, f"{i}_opium"))
-            client_5001.disconnect()
-
-
-        if action == "12":
-            tries = 10
-
-            def reader(num, client: Client):
-                client.connect()
-                print(f"thread {num} connected")
-                for _ in range(1):
-                    print(f"{num:02d}: {client.read(100)}")
-                client.disconnect()
-
-            def writer(num, write_num, client: Client):
-                client.connect()
-                print(f"thread {num} connected")
-                for _ in range(1):
-                    write_str = f"{write_num}_opium"
-                    print(f"{num:02d}: {client.write(100, write_str)}")
-                client.disconnect()
-
-            threads = [
-                threading.Thread(target=reader, args=(idx, Client(("localhost", 5000))))
-                for idx in range(tries)
+    def serve_acquire_lock(self, mem_address):
+        comm_utils.send_message(self.s, {
+            "type": "serve_acquire_lock",
+            "args": [
+                "", -1, mem_address,
             ]
-            threads.append(threading.Thread(target=writer, args=(tries, i, Client(("localhost", 5001)))))
+        })
+        data = comm_utils.receive_message(self.s)
+        return data
 
-            #random.shuffle(threads)
+    def serve_release_lock(self, mem_address):
+        comm_utils.send_message(self.s, {
+            "type": "serve_release_lock",
+            "args": [
+                "", -1, mem_address,
+            ]
+        })
+        data = comm_utils.receive_message(self.s)
+        return data
 
-            for thread in threads:
-                thread.start()
+def main_cli():
+    parser = argparse.ArgumentParser(description='CLI program for performing operations on a server.')
+    parser.add_argument('-server', help='Server address in the format "host:port"', required=True)
+    parser.add_argument('-operation', help='Operation to perform: serve_write, serve_read, serve_acquire_lock, serve_release_lock', required=True)
+    parser.add_argument('-address', help='Memory address to operate on', required=True)
+    parser.add_argument('-data', help='Data to write (only used in serve_write operation)')
 
-            for thread in threads:
-                thread.join()
+    args = parser.parse_args()
+
+    server_host, server_port = args.server.split(':')
+    server_address = (server_host, int(server_port))
+
+    client = Client(server_address)
+    args.address = int(args.address)
+
+    if args.operation == 'serve_write':
+        if args.data is None:
+            print('Data argument is required for serve_write operation')
+            return
+        result = client.serve_write(args.address, args.data)
+    elif args.operation == 'serve_read':
+        result = client.serve_read(args.address)
+    elif args.operation == 'serve_acquire_lock':
+        result = client.serve_acquire_lock(args.address)
+    elif args.operation == 'serve_release_lock':
+        result = client.serve_release_lock(args.address)
+    else:
+        print('Invalid operation')
+        return
+
+    print(result)
+
+    client.disconnect()
 
 if __name__ == "__main__":
-    main()
+    main_cli()
