@@ -514,7 +514,7 @@ class Server:
         client_address: tuple[str, int],
         memory_address: int,
     ):
-        address_chain = sorted(list(self.memory_manager.get_copy_holders(memory_address)))
+        address_chain = self.memory_manager.get_copy_holders(memory_address)
 
         update_value = self.serve_update_cache(
             client_address,

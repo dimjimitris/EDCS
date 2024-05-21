@@ -19,8 +19,8 @@ class MemoryManager:
             i: mp.LockItem() for i in range(self.memory_range[0], self.memory_range[1])
         }
 
-        self.copy_holders : dict[int, set[tuple[str, int]]] = {
-            i: set() for i in range(self.memory_range[0], self.memory_range[1])
+        self.copy_holders : dict[int, list[tuple[str, int]]] = {
+            i: [] for i in range(self.memory_range[0], self.memory_range[1])
         }
 
     def read_memory(self, address):
@@ -115,11 +115,11 @@ class MemoryManager:
         - address: the address to get copy holders for
 
         Return:
-        - the set of copy holders for the address
+        - the list of copy holders for the address
         """
         if address not in self.memory:
-            return set()
-        return self.copy_holders[address]
+            return []
+        return self.copy_holders[address].copy()
 
     def add_copy_holder(self, address, holder):
         """
@@ -132,7 +132,9 @@ class MemoryManager:
         """
         if address not in self.memory:
             return False
-        self.copy_holders[address].add(holder)
+        if holder in self.copy_holders[address]:
+            return True
+        self.copy_holders[address].append(holder)
         self.memory[address].status = "S"
         return True
     
