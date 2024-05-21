@@ -25,7 +25,7 @@ class MemoryItem:
         return {
             "data": self.data,
             "istatus": self.status,  # item status
-            "wt": self.wtag,
+            "wtag": self.wtag,
         }
 
 
@@ -46,7 +46,7 @@ class LockItem:
             ltag = self.ltag
 
         if ret_val and lease_seconds is not None:
-            th.Timer(lease_seconds, self.release_lock, args=(self.ltag, True)).start()
+            th.Timer(lease_seconds, self.release_lock, args=(self.ltag,)).start()
 
         return ret_val, ltag
 

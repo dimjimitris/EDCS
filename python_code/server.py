@@ -124,26 +124,27 @@ class Server:
         log_msg(
             f"[READ REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
-        host_address = self._get_server_address(memory_address)
-        if host_address is None:
+        host_server = self._get_server_address(memory_address)
+        if host_server is None:
             return {
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
 
-        if host_address == self.server_address:
-            ret_val, counter, tag = self.memory_manager.acquire_lock(memory_address)
-            if not ret_val or counter == -1 or tag == -1:
+        if host_server == self.server_address:
+            ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
+            if not ret_val or ltag == -1 or wtag == -1:
                 return {"status": gv.ERROR, "message": "Failed to acquire lock"}
             if not cascade and copy_holder != self.server_address:
                 self.memory_manager.add_copy_holder(memory_address, copy_holder)
             data = self.memory_manager.read_memory(memory_address)
-            self.memory_manager.release_lock(memory_address, counter)
+            self.memory_manager.release_lock(memory_address, ltag)
             data = data.json()
             response = {
                 "status": gv.SUCCESS,
                 "message": "read successful",
                 **data,
+                "ltag": ltag,
             }
             log_msg(
                 f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
@@ -157,12 +158,12 @@ class Server:
             if ac_lock_val["status"] != gv.SUCCESS:
                 return ac_lock_val
 
-            if ac_lock_val["tag"] == self.shared_cache[memory_address].tag:
+            if ac_lock_val["wtag"] == self.shared_cache[memory_address].wtag:
                 return_value = self.shared_cache[memory_address].json()
                 rel_lock_val = self.serve_release_lock(
                     self.server_address,
                     memory_address,
-                    ac_lock_val["counter"],
+                    ac_lock_val["ltag"],
                     True,
                 )
 
@@ -171,7 +172,7 @@ class Server:
                     return {"status": gv.ERROR, "message": "Failed to release lock"}
 
                 # fetch data from server
-                if rel_lock_val["tag"] != self.shared_cache[memory_address].tag:
+                if rel_lock_val["wtag"] != self.shared_cache[memory_address].wtag:
                     self.shared_cache.pop(memory_address)
                     return self.serve_read(
                         client_address,
@@ -188,6 +189,7 @@ class Server:
                     "status": gv.SUCCESS,
                     "message": "read successful",
                     **return_value,
+                    "ltag": ac_lock_val["ltag"],
                 }
             else:  # give up and then just communicate with the server
                 self.shared_cache.pop(memory_address)
@@ -202,18 +204,22 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Read host address {host_address} is not the server address {self.server_address}",
+                "message": f"Read host address {host_server} is not the server address {self.server_address}",
             }
 
         ip, port = self.server_address
-        return self._get_from_remote(
+        remote_return = self._get_from_remote(
             client_address,
             memory_address,
-            host_address,
+            host_server,
             "serve_read",
             [ip, port, memory_address, False],
             "READ",
         )
+        self.shared_cache[memory_address] = mp.MemoryItem(
+            remote_return["data"], remote_return["istatus"], remote_return["wtag"]
+        )
+        return remote_return
 
     def serve_write(
         self,
@@ -224,29 +230,29 @@ class Server:
         data,
         cascade: bool,
     ):
-        copy_holder_address = (copy_holder_ip, copy_holder_port)
+        copy_holder = (copy_holder_ip, copy_holder_port)
         log_msg(
             f"[WRITE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
-        host_address = self._get_server_address(memory_address)
-        if host_address is None:
+        host_server = self._get_server_address(memory_address)
+        if host_server is None:
             return {
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
 
-        if host_address == self.server_address:
-            ret_val, counter, tag = self.memory_manager.acquire_lock(memory_address)
-            if not ret_val or counter == -1 or tag == -1:
+        if host_server == self.server_address:
+            ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
+            if not ret_val or ltag == -1 or wtag == -1:
                 return {"status": gv.ERROR, "message": "Failed to acquire lock"}
-            if not cascade and copy_holder_address != self.server_address:
-                self.memory_manager.add_copy_holder(memory_address, copy_holder_address)
+            if not cascade and copy_holder != self.server_address:
+                self.memory_manager.add_copy_holder(memory_address, copy_holder)
             self.memory_manager.write_memory(memory_address, data)
             # update shared copies in the system, if they exist!
             if self.memory_manager.read_memory(memory_address).status == "S":
                 self._update_shared_copies(client_address, memory_address)
 
-            self.memory_manager.release_lock(memory_address, counter)
+            self.memory_manager.release_lock(memory_address, ltag)
             response = {
                 "status": gv.SUCCESS,
                 "message": "write successful",
@@ -259,14 +265,14 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Write host address {host_address} is not the server address {self.server_address}",
+                "message": f"Write host address {host_server} is not the server address {self.server_address}",
             }
 
         ip, port = self.server_address
         return self._get_from_remote(
             client_address,
             memory_address,
-            host_address,
+            host_server,
             "serve_write",
             [ip, port, memory_address, data, False],
             "WRITE",
@@ -290,7 +296,7 @@ class Server:
             }
 
         if host_server == self.server_address:
-            ret_val, counter, tag = self.memory_manager.acquire_lock(
+            ret_val, ltag, wtag = self.memory_manager.acquire_lock(
                 memory_address, lease_timeout
             )
 
@@ -300,8 +306,8 @@ class Server:
                     "status": gv.SUCCESS,
                     "message": "lock acquired",
                     "ret_val": ret_val,
-                    "counter": counter,
-                    "tag": tag,
+                    "ltag": ltag,
+                    "wtag": wtag,
                 }
             else:
                 response = {"status": gv.ERROR, "message": "lock not acquired"}
@@ -332,45 +338,34 @@ class Server:
         ltag: int,
         cascade: bool,
     ):
-        """
-        Input:
-        - client_address: the address of the client requesting the lock release
-        - memory_address: the memory address to release the lock for
-        - lease_counter: the counter of the lock when it was acquired
-        - increment_counter: if True, increment the counter by 1
-        - cascade: if True, cascade the request to the server that contains the memory address
-        """
         log_msg(
             f"[RELEASE LOCK REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
-        lock_host_address_index = self._get_server_index(memory_address)
-        if lock_host_address_index == -1:
+        host_server = self._get_server_address(memory_address)
+        if host_server is None:
             return {
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
-        lock_host_address = self.server_addresses[lock_host_address_index]
 
-        if lock_host_address == self.server_address:
-            ret_val, counter, tag = self.memory_manager.release_lock(
-                memory_address, ltag
-            )
+        if host_server == self.server_address:
+            ret_val, ltag, wtag = self.memory_manager.release_lock(memory_address, ltag)
             response = None
             if ret_val:
                 response = {
                     "status": gv.SUCCESS,
                     "message": "lock released",
                     "ret_val": ret_val,
-                    "counter": counter,
-                    "tag": tag,
+                    "ltag": ltag,
+                    "wtag": wtag,
                 }
             else:
                 response = {
                     "status": gv.SUCCESS,
                     "message": "lock was already released",
                     "ret_val": ret_val,
-                    "counter": counter,
-                    "tag": tag,
+                    "ltag": ltag,
+                    "wtag": wtag,
                 }
             log_msg(
                 f"[RELEASE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
@@ -380,43 +375,56 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Lock host address {lock_host_address} is not the server address {self.server_address}",
+                "message": f"Lock host address {host_server} is not the server address {self.server_address}",
             }
 
         return self._get_from_remote(
             client_address,
             memory_address,
-            lock_host_address,
+            host_server,
             "serve_release_lock",
-            [memory_address, ltag, False],
+            [memory_address, ltag],
             "RELEASE LOCK",
         )
 
-    def _get_server_index(self, memory_address: int) -> int:
-        """
-        Input:
-        - memory_address: the memory address to get the server index for
+    def serve_update_cache(
+        self,
+        client_address: tuple[str, int],
+        address_chain: list[tuple[str, int]],
+        memory_address: int,
+        data,
+        status: str,
+        wtag: int,
+    ):
+        aux_address_chain = []
+        for address in address_chain:
+            aux_address_chain.append((address[0], address[1]))
+        address_chain = aux_address_chain  # turn them back into tuples (from lists)
 
-        Return:
-        - server_index: the index of the server that contains the memory address, -1 if the memory address is out of range
-        """
-        for i, memory_range in enumerate(self.memory_ranges):
-            if memory_address in range(memory_range[0], memory_range[1]):
-                return i
-        return -1
+        print(
+            f"[UPDATE CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
+        )
+        host_server = self._get_server_address(memory_address)
+        if host_server is None:
+            return {
+                "status": gv.INVALID_ADDRESS,
+                "message": "Memory address out of range",
+            }
 
-    def _get_server_address(self, memory_address: int) -> None | tuple[str, int]:
-        """
-        Input:
-        - memory_address: the memory address to get the server address for
+        if host_server != self.server_address:
+            self._update_local_copy(memory_address, data, status, wtag)
 
-        Return:
-        - server_address: the address of the server that contains the memory address
-        """
-        server_index = self._get_server_index(memory_address)
-        if server_index == -1:
-            return None
-        return self.server_addresses[server_index]
+        if len(address_chain) > 0:
+            next_address = address_chain.pop(0)
+            response = self._update_next_copy(
+                address_chain, next_address, memory_address, data, status, wtag
+            )
+            return response
+
+        return {
+            "status": gv.SUCCESS,
+            "message": "cache updated",
+        }
 
     def _update_shared_copies(
         self,
@@ -455,55 +463,15 @@ class Server:
         )
         print("-" * 50)
 
-    def serve_update_cache(
-        self,
-        client_address: tuple[str, int],
-        address_chain: list[tuple[str, int]],
-        memory_address: int,
-        data,
-        status: str,
-        tag: int,
-    ):
-        aux_address_chain = []
-        for address in address_chain:
-            aux_address_chain.append((address[0], address[1]))
-        address_chain = aux_address_chain  # turn them back into tuples (from lists)
-
-        print(
-            f"[UPDATE CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
-        )
-        home_server_index = self._get_server_index(memory_address)
-        if home_server_index == -1:
-            return {
-                "status": gv.INVALID_ADDRESS,
-                "message": "Memory address out of range",
-            }
-        home_server_address = self.server_addresses[home_server_index]
-
-        if home_server_address != self.server_address:
-            self._update_local_copy(memory_address, data, status, tag)
-
-        if len(address_chain) > 0:
-            next_address = address_chain.pop(0)
-            response = self._update_next_copy(
-                address_chain, next_address, memory_address, data, status, tag
-            )
-            return response
-
-        return {
-            "status": gv.SUCCESS,
-            "message": "cache updated",
-        }
-
     def _update_local_copy(
         self,
         memory_address: int,
         data,
         status: str,
-        tag: int,
+        wtag: int,
     ):
         if memory_address in self.shared_cache:
-            self.shared_cache[memory_address] = mp.MemoryItem(data, status, tag)
+            self.shared_cache[memory_address] = mp.MemoryItem(data, status, wtag)
             return True
         else:
             return False
@@ -559,6 +527,32 @@ class Server:
                 "status": gv.ERROR,
                 "message": f"Failed to connect to the host with error: {e}",
             }
+
+    def _get_server_index(self, memory_address: int) -> int:
+        """
+        Input:
+        - memory_address: the memory address to get the server index for
+
+        Return:
+        - server_index: the index of the server that contains the memory address, -1 if the memory address is out of range
+        """
+        for i, memory_range in enumerate(self.memory_ranges):
+            if memory_address in range(memory_range[0], memory_range[1]):
+                return i
+        return -1
+
+    def _get_server_address(self, memory_address: int) -> None | tuple[str, int]:
+        """
+        Input:
+        - memory_address: the memory address to get the server address for
+
+        Return:
+        - server_address: the address of the server that contains the memory address
+        """
+        server_index = self._get_server_index(memory_address)
+        if server_index == -1:
+            return None
+        return self.server_addresses[server_index]
 
     def _connect_to_server(
         self, server_address: tuple[str, int], timeout=None
