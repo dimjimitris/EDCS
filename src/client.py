@@ -1,6 +1,8 @@
 import argparse
 import socket
+
 import comm_utils
+import global_variables as gv
 
 class Client:
     def __init__(self, server_address):
@@ -38,17 +40,7 @@ class Client:
         comm_utils.send_message(self.s, {
             "type": "serve_acquire_lock",
             "args": [
-                "", -1, mem_address,
-            ]
-        })
-        data = comm_utils.receive_message(self.s)
-        return data
-
-    def serve_release_lock(self, mem_address):
-        comm_utils.send_message(self.s, {
-            "type": "serve_release_lock",
-            "args": [
-                "", -1, mem_address,
+                mem_address, gv.LEASE_TIMEOUT, True,
             ]
         })
         data = comm_utils.receive_message(self.s)
@@ -57,7 +49,7 @@ class Client:
 def main_cli():
     parser = argparse.ArgumentParser(description='CLI program for performing operations on a server.')
     parser.add_argument('-server', help='Server address in the format "host:port"', required=True)
-    parser.add_argument('-operation', help='Operation to perform: serve_write, serve_read, serve_acquire_lock, serve_release_lock', required=True)
+    parser.add_argument('-operation', help='Operation to perform: serve_write, serve_read, serve_acquire_lock', required=True)
     parser.add_argument('-address', help='Memory address to operate on', required=True)
     parser.add_argument('-data', help='Data to write (only used in serve_write operation)')
 
