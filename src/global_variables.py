@@ -4,13 +4,17 @@ FORMAT = 'utf-8'
 CONNECTION_TIMEOUT = 1
 LEASE_TIMEOUT = 1
 
-SERVER_ADDRESSES = [
-    ('localhost', 5000),
-    ('localhost', 5001),
-    ('localhost', 5002),
+SERVERS = [
+    ("localhost", 5000),
+    ("localhost", 5001),
+    ("localhost", 5002),
 ]
 
-MEMORY_SIZE = 300
+MEMORY_RANGES = [
+    (0, 100),
+    (100, 200),
+    (200, 300),
+]
 
 # communication message status
 SUCCESS = 0

@@ -7,7 +7,6 @@ import memory_primitives as mp
 import comm_utils
 import time_utils
 
-
 CONNECTION_TIMEOUT = gv.CONNECTION_TIMEOUT
 LEASE_TIMEOUT = gv.LEASE_TIMEOUT
 
@@ -31,8 +30,6 @@ class Server:
 
         self.memory_manager = mm.MemoryManager(memory_range=self.memory_range)
         self.shared_cache: dict[int, mp.MemoryItem] = {}
-
-
 
     def start(self):
         """
@@ -110,7 +107,7 @@ class Server:
         log_msg(
             f"[DISCONNECTED] server {self.server_address}, client {client_address}."
         )
-        #client_socket.shutdown(socket.SHUT_RDWR)
+        # client_socket.shutdown(socket.SHUT_RDWR)
         client_socket.close()
 
     def serve_read(
@@ -534,13 +531,18 @@ class Server:
             failed_address = update_value.get("server_address", None)
             if failed_address is None:
                 failed_address = address_chain[0]
-            failed_address = (failed_address[0], failed_address[1]) # turn it into a tuple again
+            failed_address = (
+                failed_address[0],
+                failed_address[1],
+            )  # turn it into a tuple again
 
             for i, address in enumerate(address_chain):
                 if i >= address_chain.index(failed_address):
                     self.memory_manager.remove_copy_holder(memory_address, address)
 
-        print(f"[UPDATE SHARED COPIES] COPY HOLDERS: {self.memory_manager.get_copy_holders(memory_address)}")
+        print(
+            f"[UPDATE SHARED COPIES] COPY HOLDERS: {self.memory_manager.get_copy_holders(memory_address)}"
+        )
         print("-" * 50)
 
     def serve_update_cache(
@@ -555,9 +557,11 @@ class Server:
         aux_address_chain = []
         for address in address_chain:
             aux_address_chain.append((address[0], address[1]))
-        address_chain = aux_address_chain # turn them back into tuples (from lists)
+        address_chain = aux_address_chain  # turn them back into tuples (from lists)
 
-        print(f"[UPDATE CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}")
+        print(
+            f"[UPDATE CACHE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
+        )
         home_server_index = self._get_server_index(memory_address)
         if home_server_index == -1:
             return {
@@ -569,21 +573,21 @@ class Server:
         local_updated = True
         if home_server_address != self.server_address:
             local_updated = self._update_local_copy(memory_address, data, status, tag)
-            #if not local_updated:
+            # if not local_updated:
             #    print(f"[UPDATE CACHE] server {self.server_address}, client {client_address}, address {memory_address}: failed to update local copy")
             #    return {
             #        "status": gv.ERROR,
             #        "message": "Failed to update local copy",
             #        "server_address": self.server_address,
             #    }
-            
+
         if len(address_chain) > 0:
             next_address = address_chain.pop(0)
             response = self._update_next_copy(
                 address_chain, next_address, memory_address, data, status, tag
             )
             return response
-        
+
         return {
             "status": gv.SUCCESS,
             "message": "cache updated",
@@ -636,7 +640,6 @@ class Server:
                 "server_address": next_address,
             }
 
-
     def _connect_to_server(
         self, server_address: tuple[str, int], timeout=None
     ) -> socket.socket:
@@ -666,31 +669,31 @@ class Server:
             comm_utils.send_message(server_socket, {"type": "disconnect"})
             comm_utils.receive_message(server_socket)
         finally:
-            #server_socket.shutdown(socket.SHUT_RDWR)
+            # server_socket.shutdown(socket.SHUT_RDWR)
             server_socket.close()
 
 
 # just for testing purposes...
-def start_server_process(
-    net_address: tuple[str, int],
-    memory_range: tuple[int, int],
-    net_addresses: list[tuple[str, int]],
-    memory_ranges: list[tuple[int, int]],
-):
+def start_server_process(server_index: int):
+    memory_ranges = gv.MEMORY_RANGES
+    net_addresses = gv.SERVERS
+    net_address = net_addresses[server_index]
+    memory_range = memory_ranges[server_index]
     server = Server(net_address, memory_range, net_addresses, memory_ranges)
     server.start()
 
+import argparse
 
-memory_ranges = ((0, 100), (100, 200), (200, 300))
-net_addresses = [("localhost", 5000), ("localhost", 5001), ("localhost", 5002)]
+def main():
+    parser = argparse.ArgumentParser(description="Start a server process")
+    parser.add_argument(
+        "-server_index",
+        type=int,
+        help="The index of the server in the list of servers",
+        required=True,
+    )
+    args = parser.parse_args()
+    start_server_process(int(args.server_index))
 
-
-def s1(dynamic=True):
-    start_server_process(("localhost", 5000), (0, 100), net_addresses, memory_ranges)
-
-
-def s2(dynamic=True):
-    start_server_process(("localhost", 5001), (100, 200), net_addresses, memory_ranges)
-
-def s3(dynamic=True):
-    start_server_process(("localhost", 5002), (200, 300), net_addresses, memory_ranges)
+if __name__ == "__main__":
+    main()

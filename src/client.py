@@ -70,8 +70,6 @@ def main_cli():
         result = client.serve_read(args.address)
     elif args.operation == 'serve_acquire_lock':
         result = client.serve_acquire_lock(args.address)
-    elif args.operation == 'serve_release_lock':
-        result = client.serve_release_lock(args.address)
     else:
         print('Invalid operation')
         return
