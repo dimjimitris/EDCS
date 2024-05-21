@@ -682,7 +682,9 @@ def start_server_process(server_index: int):
     server = Server(net_address, memory_range, net_addresses, memory_ranges)
     server.start()
 
+
 import argparse
+
 
 def main():
     parser = argparse.ArgumentParser(description="Start a server process")
@@ -694,6 +696,7 @@ def main():
     )
     args = parser.parse_args()
     start_server_process(int(args.server_index))
+
 
 if __name__ == "__main__":
     main()
