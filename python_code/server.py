@@ -4,15 +4,15 @@ import threading as th
 import global_variables as gv
 import memory_manager as mm
 import memory_primitives as mp
-import comm_utils
-import time_utils
+import comm_utils as cu
+import time_utils as tu
 
 CONNECTION_TIMEOUT = gv.CONNECTION_TIMEOUT
 LEASE_TIMEOUT = gv.LEASE_TIMEOUT
 
 
 def log_msg(msg: str, datetime: bool = False):
-    print(f"{time_utils.get_datetime() if datetime else ''}{msg}")
+    print(f"{tu.get_datetime() if datetime else ''}{msg}")
 
 
 class Server:
@@ -20,12 +20,12 @@ class Server:
         self,
         server_address: tuple[str, int],
         memory_range: tuple[int, int],
-        net_addresses: list[tuple[str, int]],
+        server_addresses: list[tuple[str, int]],
         memory_ranges: list[tuple[int, int]],
     ):
         self.server_address = server_address
         self.memory_range = memory_range
-        self.net_addresses = net_addresses
+        self.server_addresses = server_addresses
         self.memory_ranges = memory_ranges
 
         self.memory_manager = mm.MemoryManager(memory_range=self.memory_range)
@@ -66,7 +66,7 @@ class Server:
             return_data = None
             message = None
             try:
-                message = comm_utils.receive_message(client_socket)
+                message = cu.rec_msg(client_socket)
             except Exception as e:
                 log_msg(
                     f"[ERROR RECEIVING] server {self.server_address}, client {client_address}: {e}"
@@ -97,7 +97,7 @@ class Server:
                 }
 
             try:
-                comm_utils.send_message(client_socket, return_data)
+                cu.send_msg(client_socket, return_data)
             except Exception as e:
                 log_msg(
                     f"[ERROR SENDING] server {self.server_address}, client {client_address}: {e}"
@@ -117,42 +117,28 @@ class Server:
         copy_holder_port: int,
         memory_address: int,
         cascade: bool,
-        time_out=LEASE_TIMEOUT,
+        lease_timeout=LEASE_TIMEOUT,
     ):
-        """
-        Input:
-        - client_address: the address of the client requesting the read
-        - copy_holder_ip: the ip address of the server that wants to contain the memory address
-        - copy_holder_port: the port of the server that wants to contain the memory address
-        - memory_address: the memory address to read from
-        - cascade: if True, cascade the request to the server that contains the memory address
-        - time_out: if timeout is 0, lock is acquired indefinitely, otherwise, lock is acquired for timeout seconds (only for remote locks)
-
-        Return:
-        - response: the response to the read request
-        """
         # potentially new holder of the memory address
-        copy_holder_address = (copy_holder_ip, copy_holder_port)
+        copy_holder = (copy_holder_ip, copy_holder_port)
         log_msg(
             f"[READ REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
-        read_host_address_index = self._get_server_index(memory_address)
-        if read_host_address_index == -1:
+        host_address = self._get_server_address(memory_address)
+        if host_address is None:
             return {
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
-        read_host_address = self.net_addresses[read_host_address_index]
 
-        if read_host_address == self.server_address:
+        if host_address == self.server_address:
             ret_val, counter, tag = self.memory_manager.acquire_lock(memory_address)
             if not ret_val or counter == -1 or tag == -1:
                 return {"status": gv.ERROR, "message": "Failed to acquire lock"}
-            if not cascade:
-                # self.memory_manager.set_status(memory_address, "S")
-                self.memory_manager.add_copy_holder(memory_address, copy_holder_address)
+            if not cascade and copy_holder != self.server_address:
+                self.memory_manager.add_copy_holder(memory_address, copy_holder)
             data = self.memory_manager.read_memory(memory_address)
-            self.memory_manager.release_lock(memory_address, counter, False)
+            self.memory_manager.release_lock(memory_address, counter)
             data = data.json()
             response = {
                 "status": gv.SUCCESS,
@@ -166,7 +152,7 @@ class Server:
 
         if memory_address in self.shared_cache:
             ac_lock_val = self.serve_acquire_lock(
-                self.server_address, memory_address, time_out, True
+                self.server_address, memory_address, lease_timeout, True
             )
             if ac_lock_val["status"] != gv.SUCCESS:
                 return ac_lock_val
@@ -177,7 +163,6 @@ class Server:
                     self.server_address,
                     memory_address,
                     ac_lock_val["counter"],
-                    True,
                     True,
                 )
 
@@ -217,37 +202,18 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Read host address {read_host_address} is not the server address {self.server_address}",
+                "message": f"Read host address {host_address} is not the server address {self.server_address}",
             }
 
-        try:
-            s = self._connect_to_server(read_host_address)
-            comm_utils.send_message(
-                s,
-                {
-                    "type": "serve_read",
-                    "args": [
-                        self.server_address[0],
-                        self.server_address[1],
-                        memory_address,
-                        False,
-                    ],
-                },
-            )
-            data = comm_utils.receive_message(s)
-            self.shared_cache[memory_address] = mp.MemoryItem(
-                data["data"], data["istatus"], data["tag"]
-            )
-            self._disconnect_from_server(s)
-            log_msg(
-                f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {data}"
-            )
-            return data
-        except Exception as e:
-            return {
-                "status": gv.ERROR,
-                "message": f"Failed to connect to the read host with error: {e}",
-            }
+        ip, port = self.server_address
+        return self._get_from_remote(
+            client_address,
+            memory_address,
+            host_address,
+            "serve_read",
+            [ip, port, memory_address, False],
+            "READ",
+        )
 
     def serve_write(
         self,
@@ -258,41 +224,29 @@ class Server:
         data,
         cascade: bool,
     ):
-        """
-        Input:
-        - client_address: the address of the client requesting the write
-        - copy_holder_ip: the ip address of the server that wants to contain the memory address
-        - copy_holder_port: the port of the server that wants to contain the memory address
-        - memory_address: the memory address to write to
-        - data: the data to write
-        - cascade: if True, cascade the request to the server that contains the memory address
-
-        Return:
-        - response: the response to the write request
-        """
         copy_holder_address = (copy_holder_ip, copy_holder_port)
         log_msg(
             f"[WRITE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
         )
-        write_host_address_index = self._get_server_index(memory_address)
-        if write_host_address_index == -1:
-            return {"status": gv.ERROR, "message": "Memory address out of range"}
-        write_host_address = self.net_addresses[write_host_address_index]
+        host_address = self._get_server_address(memory_address)
+        if host_address is None:
+            return {
+                "status": gv.INVALID_ADDRESS,
+                "message": "Memory address out of range",
+            }
 
-        if write_host_address == self.server_address:
+        if host_address == self.server_address:
             ret_val, counter, tag = self.memory_manager.acquire_lock(memory_address)
             if not ret_val or counter == -1 or tag == -1:
                 return {"status": gv.ERROR, "message": "Failed to acquire lock"}
-            prev_status = self.memory_manager.read_memory(memory_address).status
-            if not cascade:
-                # self.memory_manager.set_status(memory_address, "S")
+            if not cascade and copy_holder_address != self.server_address:
                 self.memory_manager.add_copy_holder(memory_address, copy_holder_address)
             self.memory_manager.write_memory(memory_address, data)
             # update shared copies in the system, if they exist!
-            if prev_status == "S":
+            if self.memory_manager.read_memory(memory_address).status == "S":
                 self._update_shared_copies(client_address, memory_address)
 
-            self.memory_manager.release_lock(memory_address, counter, False)
+            self.memory_manager.release_lock(memory_address, counter)
             response = {
                 "status": gv.SUCCESS,
                 "message": "write successful",
@@ -305,67 +259,39 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Write host address {write_host_address} is not the server address {self.server_address}",
+                "message": f"Write host address {host_address} is not the server address {self.server_address}",
             }
 
-        try:
-            s = self._connect_to_server(write_host_address)
-            comm_utils.send_message(
-                s,
-                {
-                    "type": "serve_write",
-                    "args": [
-                        self.server_address[0],
-                        self.server_address[1],
-                        memory_address,
-                        data,
-                        False,
-                    ],
-                },
-            )
-            response = comm_utils.receive_message(s)
-            self._disconnect_from_server(s)
-            log_msg(
-                f"[WRITE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
-            )
-            return response
-        except Exception as e:
-            return {
-                "status": gv.ERROR,
-                "message": f"Failed to connect to the write host with error: {e}",
-            }
+        ip, port = self.server_address
+        return self._get_from_remote(
+            client_address,
+            memory_address,
+            host_address,
+            "serve_write",
+            [ip, port, memory_address, data, False],
+            "WRITE",
+        )
 
     def serve_acquire_lock(
         self,
         client_address: tuple[str, int],
         memory_address: int,
-        lease_timout: int,
+        lease_timeout: float,
         cascade: bool,
     ):
-        """
-        Input:
-        - client_address: the address of the client requesting the lock
-        - memory_address: the memory address to acquire the lock for
-        - timeout: if timeout is 0, lock is acquired indefinitely, otherwise, lock is acquired for timeout seconds
-        - cascade: if True, cascade the request to the server that contains the memory address
-
-        Return:
-        - response: the response to the acquire lock request
-        """
         log_msg(
             f"[ACQUIRE LOCK REQUEST] server {self.server_address}, client {client_address}, memory address {memory_address}"
         )
-        host_server_index = self._get_server_index(memory_address)
-        if host_server_index == -1:
+        host_server = self._get_server_address(memory_address)
+        if host_server is None:
             return {
                 "status": gv.INVALID_ADDRESS,
-                "message": "memory address out of range",
+                "message": "Memory address out of range",
             }
-        host_server_address = self.net_addresses[host_server_index]
 
-        if host_server_address == self.server_address:
+        if host_server == self.server_address:
             ret_val, counter, tag = self.memory_manager.acquire_lock(
-                memory_address, lease_timout
+                memory_address, lease_timeout
             )
 
             response = None
@@ -387,41 +313,23 @@ class Server:
         if not cascade:
             return {
                 "status": gv.ERROR,
-                "message": f"Lock host address {host_server_address} is not the server address {self.server_address}",
+                "message": f"Lock host address {host_server} is not the server address {self.server_address}",
             }
 
-        try:
-            host_server_socket = self._connect_to_server(
-                host_server_address, CONNECTION_TIMEOUT
-            )
-            comm_utils.send_message(
-                host_server_socket,
-                {
-                    "type": "serve_acquire_lock",
-                    "args": [memory_address, lease_timout, False],
-                },
-            )
-            response = comm_utils.receive_message(host_server_socket)
-            self._disconnect_from_server(host_server_socket)
-            log_msg(
-                f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
-            )
-            return response
-        except Exception as e:
-            log_msg(
-                f"[ERROR ACQUIRING LOCK] server {self.server_address}, client {client_address}, memory address {memory_address}: {e}"
-            )
-            return {
-                "status": gv.ERROR,
-                "message": f"Failed to connect to the lock host with error: {e}",
-            }
+        return self._get_from_remote(
+            client_address,
+            memory_address,
+            host_server,
+            "serve_acquire_lock",
+            [memory_address, lease_timeout, False],
+            "ACQUIRE LOCK",
+        )
 
     def serve_release_lock(
         self,
         client_address: tuple[str, int],
         memory_address: int,
-        lease_counter: int,
-        increment_counter: bool,
+        ltag: int,
         cascade: bool,
     ):
         """
@@ -441,11 +349,11 @@ class Server:
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
-        lock_host_address = self.net_addresses[lock_host_address_index]
+        lock_host_address = self.server_addresses[lock_host_address_index]
 
         if lock_host_address == self.server_address:
             ret_val, counter, tag = self.memory_manager.release_lock(
-                memory_address, lease_counter, increment_counter
+                memory_address, ltag
             )
             response = None
             if ret_val:
@@ -474,26 +382,15 @@ class Server:
                 "status": gv.ERROR,
                 "message": f"Lock host address {lock_host_address} is not the server address {self.server_address}",
             }
-        try:
-            s = self._connect_to_server(lock_host_address)
-            comm_utils.send_message(
-                s,
-                {
-                    "type": "serve_release_lock",
-                    "args": [memory_address, lease_counter, increment_counter, False],
-                },
-            )
-            response = comm_utils.receive_message(s)
-            self._disconnect_from_server(s)
-            log_msg(
-                f"[RELEASE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
-            )
-            return response
-        except Exception as e:
-            return {
-                "status": gv.ERROR,
-                "message": f"Failed to connect to the lock host with error: {e}",
-            }
+
+        return self._get_from_remote(
+            client_address,
+            memory_address,
+            lock_host_address,
+            "serve_release_lock",
+            [memory_address, ltag, False],
+            "RELEASE LOCK",
+        )
 
     def _get_server_index(self, memory_address: int) -> int:
         """
@@ -508,6 +405,19 @@ class Server:
                 return i
         return -1
 
+    def _get_server_address(self, memory_address: int) -> None | tuple[str, int]:
+        """
+        Input:
+        - memory_address: the memory address to get the server address for
+
+        Return:
+        - server_address: the address of the server that contains the memory address
+        """
+        server_index = self._get_server_index(memory_address)
+        if server_index == -1:
+            return None
+        return self.server_addresses[server_index]
+
     def _update_shared_copies(
         self,
         client_address: tuple[str, int],
@@ -521,7 +431,7 @@ class Server:
             memory_address,
             self.memory_manager.read_memory(memory_address).data,
             self.memory_manager.read_memory(memory_address).status,
-            self.memory_manager.read_memory(memory_address).tag,
+            self.memory_manager.read_memory(memory_address).wtag,
         )
 
         print("-" * 50)
@@ -568,18 +478,10 @@ class Server:
                 "status": gv.INVALID_ADDRESS,
                 "message": "Memory address out of range",
             }
-        home_server_address = self.net_addresses[home_server_index]
+        home_server_address = self.server_addresses[home_server_index]
 
-        local_updated = True
         if home_server_address != self.server_address:
-            local_updated = self._update_local_copy(memory_address, data, status, tag)
-            # if not local_updated:
-            #    print(f"[UPDATE CACHE] server {self.server_address}, client {client_address}, address {memory_address}: failed to update local copy")
-            #    return {
-            #        "status": gv.ERROR,
-            #        "message": "Failed to update local copy",
-            #        "server_address": self.server_address,
-            #    }
+            self._update_local_copy(memory_address, data, status, tag)
 
         if len(address_chain) > 0:
             next_address = address_chain.pop(0)
@@ -613,31 +515,49 @@ class Server:
         memory_address: int,
         data,
         status: str,
-        tag: int,
+        wtag: int,
+    ):
+        ret_val = self._get_from_remote(
+            None,
+            memory_address,
+            next_address,
+            "serve_update_cache",
+            [address_chain, memory_address, data, status, wtag],
+            "UPDATE CACHE",
+        )
+
+        if ret_val["status"] != gv.SUCCESS and "server_address" not in ret_val:
+            ret_val["server_address"] = next_address
+
+        return ret_val
+
+    def _get_from_remote(
+        self,
+        client_address: tuple[str, int],
+        memory_address: int,
+        host_server: tuple[str, int],
+        type: str,
+        args: list[any],
+        log_type: str,
     ):
         try:
-            s = self._connect_to_server(next_address)
-            comm_utils.send_message(
-                s,
-                {
-                    "type": "serve_update_cache",
-                    "args": [
-                        address_chain,
-                        memory_address,
-                        data,
-                        status,
-                        tag,
-                    ],
-                },
+            host_server_socket = self._connect_to_server(
+                host_server, CONNECTION_TIMEOUT
             )
-            response = comm_utils.receive_message(s)
-            self._disconnect_from_server(s)
+            cu.send_msg(host_server_socket, {"type": type, "args": args})
+            response = cu.rec_msg(host_server_socket)
+            self._disconnect_from_server(host_server_socket)
+            log_msg(
+                f"[{log_type} RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
+            )
             return response
         except Exception as e:
+            log_msg(
+                f"[{log_type} ERROR] server {self.server_address}, client {client_address}, memory address {memory_address}: {e}"
+            )
             return {
                 "status": gv.ERROR,
-                "message": f"Failed to connect to the next copy with error: {e}",
-                "server_address": next_address,
+                "message": f"Failed to connect to the host with error: {e}",
             }
 
     def _connect_to_server(
@@ -666,8 +586,8 @@ class Server:
         - None
         """
         try:
-            comm_utils.send_message(server_socket, {"type": "disconnect"})
-            comm_utils.receive_message(server_socket)
+            cu.send_msg(server_socket, {"type": "disconnect"})
+            cu.rec_msg(server_socket)
         finally:
             # server_socket.shutdown(socket.SHUT_RDWR)
             server_socket.close()
