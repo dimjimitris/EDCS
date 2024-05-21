@@ -72,7 +72,7 @@ def main_cli():
         description="CLI program for performing operations on a server."
     )
     parser.add_argument(
-        "-server", help='Server address in the format "host:port"', required=True
+        "-server_index", type=int, help='Server index = {0,1,2}', required=True
     )
     parser.add_argument(
         "-operation",
@@ -88,7 +88,7 @@ def main_cli():
 
     args = parser.parse_args()
 
-    server_host, server_port = args.server.split(":")
+    server_host, server_port = gv.SERVERS[args.server_index % 3]
     server_address = (server_host, int(server_port))
 
     client = Client(server_address)
@@ -109,7 +109,6 @@ def main_cli():
     print(result)
 
     client.disconnect()
-
 
 if __name__ == "__main__":
     main_cli()
