@@ -17,3 +17,6 @@ SUCCESS = 0
 ERROR = 1
 INVALID_ADDRESS = 2
 INVALID_OPERATION = 3
+
+# internal message status
+NON_LOCAL = -1

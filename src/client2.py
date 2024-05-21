@@ -102,9 +102,9 @@ def main():
             client_5001.disconnect()
 
         if action == "10":
-            client_5001.connect()
-            print(client_5001.read(200))
-            client_5001.disconnect()
+            client_5000.connect()
+            print(client_5000.write(100, f"{i}_opium"))
+            client_5000.disconnect()
 
         if action == "11":
             client_5001.connect()
