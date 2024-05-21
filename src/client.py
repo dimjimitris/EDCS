@@ -78,7 +78,9 @@ def main_cli():
         help="Operation to perform: serve_write, serve_read, serve_acquire_lock",
         required=True,
     )
-    parser.add_argument("-address", help="Memory address to operate on", required=True)
+    parser.add_argument(
+        "-address", type=int, help="Memory address to operate on", required=True
+    )
     parser.add_argument(
         "-data", help="Data to write (only used in serve_write operation)"
     )
@@ -89,7 +91,6 @@ def main_cli():
     server_address = (server_host, int(server_port))
 
     client = Client(server_address)
-    args.address = int(args.address)
 
     if args.operation == "serve_write":
         if args.data is None:
