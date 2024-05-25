@@ -132,13 +132,15 @@ class Server:
             }
 
         if host_server == self.server_address:
-            ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
-            if not ret_val or ltag == -1 or wtag == -1:
-                return {"status": gv.ERROR, "message": "Failed to acquire lock"}
-            if not cascade and copy_holder != self.server_address:
-                self.memory_manager.add_copy_holder(memory_address, copy_holder)
-            data = self.memory_manager.read_memory(memory_address)
-            self.memory_manager.release_lock(memory_address, ltag)
+            try:
+                ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
+                if not ret_val or ltag == -1 or wtag == -1:
+                    return {"status": gv.ERROR, "message": "Failed to acquire lock"}
+                if not cascade and copy_holder != self.server_address:
+                    self.memory_manager.add_copy_holder(memory_address, copy_holder)
+                data = self.memory_manager.read_memory(memory_address)
+            finally:
+                self.memory_manager.release_lock(memory_address, ltag)
             data = data.json()
             response = {
                 "status": gv.SUCCESS,
@@ -242,17 +244,18 @@ class Server:
             }
 
         if host_server == self.server_address:
-            ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
-            if not ret_val or ltag == -1 or wtag == -1:
-                return {"status": gv.ERROR, "message": "Failed to acquire lock"}
-            if not cascade and copy_holder != self.server_address:
-                self.memory_manager.add_copy_holder(memory_address, copy_holder)
-            self.memory_manager.write_memory(memory_address, data)
-            # update shared copies in the system, if they exist!
-            if self.memory_manager.read_memory(memory_address).status == "S":
-                self._update_shared_copies(client_address, memory_address)
-
-            self.memory_manager.release_lock(memory_address, ltag)
+            try:
+                ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
+                if not ret_val or ltag == -1 or wtag == -1:
+                    return {"status": gv.ERROR, "message": "Failed to acquire lock"}
+                if not cascade and copy_holder != self.server_address:
+                    self.memory_manager.add_copy_holder(memory_address, copy_holder)
+                self.memory_manager.write_memory(memory_address, data)
+                # update shared copies in the system, if they exist!
+                if self.memory_manager.read_memory(memory_address).status == "S":
+                    self._update_shared_copies(client_address, memory_address)
+            finally:
+                self.memory_manager.release_lock(memory_address, ltag)
             response = {
                 "status": gv.SUCCESS,
                 "message": "write successful",
@@ -296,25 +299,32 @@ class Server:
             }
 
         if host_server == self.server_address:
-            ret_val, ltag, wtag = self.memory_manager.acquire_lock(
-                memory_address, lease_timeout
-            )
+            try:
+                ret_val, ltag, wtag = self.memory_manager.acquire_lock(
+                    memory_address, lease_timeout
+                )
 
-            response = None
-            if ret_val:
+                response = None
+                if ret_val:
+                    response = {
+                        "status": gv.SUCCESS,
+                        "message": "lock acquired",
+                        "ret_val": ret_val,
+                        "ltag": ltag,
+                        "wtag": wtag,
+                    }
+                else:
+                    response = {"status": gv.ERROR, "message": "lock not acquired"}
+                log_msg(
+                    f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
+                )
+            except Exception as e:
                 response = {
-                    "status": gv.SUCCESS,
-                    "message": "lock acquired",
-                    "ret_val": ret_val,
-                    "ltag": ltag,
-                    "wtag": wtag,
+                    "status": gv.ERROR,
+                    "message": f"Failed to acquire lock with error: {e}",
                 }
-            else:
-                response = {"status": gv.ERROR, "message": "lock not acquired"}
-            log_msg(
-                f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
-            )
-            return response
+            finally:
+                return response
 
         if not cascade:
             return {
