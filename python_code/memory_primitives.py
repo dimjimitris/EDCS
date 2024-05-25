@@ -38,11 +38,10 @@ class LockItem:
     def acquire_lock(self, lease_seconds=None) -> tuple[bool, int]:
         ret_val, ltag = None, -1
         with self.condition:
-            while self.lock.locked():
+            while self.lock.acquire(blocking=False) is False:
                 self.condition.wait()
-            ret_val = self.lock.acquire()
-            if ret_val:
-                self.ltag += 1
+            ret_val = True
+            self.ltag += 1
             ltag = self.ltag
 
         if ret_val and lease_seconds is not None:
