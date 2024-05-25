@@ -13,11 +13,7 @@ SERVERS = [
     ("localhost", 5002),
 ]
 
-MEMORY_RANGES = [
-    (0, 100),
-    (100, 200),
-    (200, 300),
-]
+MEMORY_SIZE = 300
 
 # communication message status
 SUCCESS = 0

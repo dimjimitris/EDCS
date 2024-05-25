@@ -587,7 +587,12 @@ class Server:
 
 # just for testing purposes...
 def start_server_process(server_index: int):
-    memory_ranges = gv.MEMORY_RANGES
+    memory_size = gv.MEMORY_SIZE
+    server_count = len(gv.SERVERS)
+    server_memory_size = memory_size // server_count
+    memory_ranges = []
+    for i in range(server_count):
+        memory_ranges.append((i * server_memory_size, (i + 1) * server_memory_size))
     net_addresses = gv.SERVERS
     net_address = net_addresses[server_index]
     memory_range = memory_ranges[server_index]
