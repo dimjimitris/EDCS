@@ -169,7 +169,7 @@ class Server:
                     True,
                 )
 
-                if rel_lock_val["status"] == gv.ERROR:
+                if rel_lock_val["status"] != gv.SUCCESS:
                     self.shared_cache.pop(memory_address)
                     return {"status": gv.ERROR, "message": "Failed to release lock"}
 
