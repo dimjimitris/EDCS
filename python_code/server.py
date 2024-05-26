@@ -454,7 +454,7 @@ class Server:
         )
 
         print("-" * 50)
-        print(f"[UPDATE SHARED COPIES] {update_value}")
+        log_msg(f"[UPDATE SHARED COPIES] {update_value}")
 
         if update_value["status"] != gv.SUCCESS:
             failed_address = update_value.get("server_address", None)
@@ -469,7 +469,7 @@ class Server:
                 if i >= address_chain.index(failed_address):
                     self.memory_manager.remove_copy_holder(memory_address, address)
 
-        print(
+        log_msg(
             f"[UPDATE SHARED COPIES] COPY HOLDERS: {self.memory_manager.get_copy_holders(memory_address)}"
         )
         print("-" * 50)
