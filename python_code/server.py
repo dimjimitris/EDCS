@@ -618,13 +618,13 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Start a server process")
     parser.add_argument(
-        "-server_index",
+        "-server",
         type=int,
         help="The index of the server in the list of servers",
         required=True,
     )
     args = parser.parse_args()
-    start_server_process(int(args.server_index))
+    start_server_process(int(args.server))
 
 
 if __name__ == "__main__":
