@@ -218,9 +218,11 @@ class Server:
             [ip, port, memory_address, False],
             "READ",
         )
-        self.shared_cache[memory_address] = mp.MemoryItem(
-            remote_return["data"], remote_return["istatus"], remote_return["wtag"]
-        )
+
+        if remote_return["status"] == gv.SUCCESS:
+            self.shared_cache[memory_address] = mp.MemoryItem(
+                remote_return["data"], remote_return["istatus"], remote_return["wtag"]
+            )
         return remote_return
 
     def serve_write(
