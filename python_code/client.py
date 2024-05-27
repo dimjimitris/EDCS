@@ -193,6 +193,8 @@ def test2():
             print(client.serve_read(addr))
         elif op == "write":
             print(client.serve_write(addr, data))
+        
+        print(client.disconnect())
 
 
 if __name__ == "__main__":
