@@ -10,7 +10,7 @@ load_dotenv()
 HEADER_LENGTH = int(os.getenv("HEADER_LENGTH"))                                     # 64
 FORMAT = os.getenv("FORMAT")                                                        # 'utf-8'               
 CONNECTION_TIMEOUT = int(os.getenv("CONNECTION_TIMEOUT"))                           # 5
-LEASE_TIMEOUT = int(os.getenv("LEASE_TIMEOUT"))                                     # 5    
+LEASE_TIMEOUT = int(os.getenv("LEASE_TIMEOUT"))                                     # 3    
 SERVERS = [tuple(server.split(":")) for server in os.getenv("SERVERS").split(",")]
 SERVERS = [(server[0], int(server[1])) for server in SERVERS] 
 MEMORY_SIZE = int(os.getenv("MEMORY_SIZE"))                                         # 300
