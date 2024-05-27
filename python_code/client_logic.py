@@ -15,6 +15,7 @@ class Client:
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.settimeout(3 * gv.CONNECTION_TIMEOUT)
         self.s.connect(self.server_address)
 
     def disconnect(self):
