@@ -13,21 +13,15 @@ import java.util.Scanner;
 public class ClientApp {
     public static void main(String[] args) {
         // Parse command-line arguments
-        int serverIndex = -1;
-        if (args.length > 0 && args[0].startsWith("-server")) {
-            try {
-                serverIndex = Integer.parseInt(args[1]);
-            } catch (Exception e) {
-                System.out.println("Invalid server index provided.");
-                return;
-            }
+        int serverIndex = parseArguments(args);
+        if (serverIndex == -1) {
+            printUsage();
+            System.exit(0);
         }
 
         ArrayList<Tuple<String, Integer>> myServers = new ArrayList<>(GlobalVariables.SERVERS);
         // Select server address
-        Tuple<String, Integer> serverAddress = serverIndex == -1
-                ? myServers.get(new Random().nextInt(myServers.toArray().length))
-                : myServers.get(serverIndex);
+        Tuple<String, Integer> serverAddress = myServers.get(serverIndex);
 
         // Create client and connect to the server
         ClientLogic client = new ClientLogic(serverAddress);
@@ -108,5 +102,31 @@ public class ClientApp {
         }
 
         scanner.close();
+    }
+
+    private static int parseArguments(String[] args) {
+        if (args.length == 0) {
+            ArrayList<Tuple<String, Integer>> myServers = new ArrayList<>(GlobalVariables.SERVERS);
+            return new Random().nextInt(myServers.toArray().length);
+        }
+
+        if (args.length != 2 || !args[0].equals("-server")) {
+            return -1;
+        }
+
+        try {
+            return Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid server index provided.");
+            return -1;
+        }
+    }
+
+    private static void printUsage() {
+        System.out.println("Usage: java -jar client-app.jar -server <SERVER_INDEX>");
+        System.out.println("Start a client process which connect to a memory server");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -server <SERVER_INDEX>   The index of the server in the list of servers, if this option is missing connect to a random server");
     }
 }

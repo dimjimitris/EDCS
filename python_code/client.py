@@ -8,7 +8,7 @@ import client_logic
 def main():
     parser = argparse.ArgumentParser(description="Client to connect to a memory server")
     parser.add_argument(
-        "-server", type=int, help="The index of the server in the list of servers"
+        "-server", type=int, help="The index of the server in the list of servers, if this option is missing connect to a random server"
     )
     args = parser.parse_args()
 

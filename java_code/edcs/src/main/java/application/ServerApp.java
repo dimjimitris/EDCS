@@ -10,17 +10,34 @@ import java.util.List;
 
 public class ServerApp {
     public static void main( String[] args ) throws IOException {
-        int serverIndex = -1;
-        if (args.length > 0 && args[0].startsWith("-server")) {
-            try {
-                serverIndex = Integer.parseInt(args[1]);
-            } catch (Exception e) {
-                System.out.println("Invalid server index provided.");
-                return;
-            }
+        int serverIndex = parseArguments(args);
+        if (serverIndex == -1) {
+            printUsage();
+            System.exit(0);
         }
 
         ServerApp.startServerProcess(serverIndex);
+    }
+
+    private static int parseArguments(String[] args) {
+        if (args.length != 2 || !args[0].equals("-server")) {
+            return -1;
+        }
+
+        try {
+            return Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid server index provided.");
+            return -1;
+        }
+    }
+
+    private static void printUsage() {
+        System.out.println("Usage: java -jar server-app.jar -server <SERVER_INDEX>");
+        System.out.println("Start a server process");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -server <SERVER_INDEX>   The index of the server in the list of servers");
     }
 
     private static void startServerProcess(int serverIndex) throws IOException {
