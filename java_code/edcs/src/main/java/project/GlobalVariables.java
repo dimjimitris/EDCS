@@ -1,4 +1,4 @@
-package project;
+package main.java.project;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import java.nio.charset.StandardCharsets;

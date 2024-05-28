@@ -1,8 +1,8 @@
-package edcs.write_update;
+package main.java.application;
 
-import project.GlobalVariables;
-import project.Server;
-import project.Tuple;
+import main.java.project.GlobalVariables;
+import main.java.project.Server;
+import main.java.project.Tuple;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,7 +10,15 @@ import java.util.List;
 
 public class ServerApp {
     public static void main( String[] args ) throws IOException {
-        int serverIndex = Integer.parseInt(args[0]);
+        int serverIndex = -1;
+        if (args.length > 0 && args[0].startsWith("-server")) {
+            try {
+                serverIndex = Integer.parseInt(args[1]);
+            } catch (Exception e) {
+                System.out.println("Invalid server index provided.");
+                return;
+            }
+        }
 
         ServerApp.startServerProcess(serverIndex);
     }

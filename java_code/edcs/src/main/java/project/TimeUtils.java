@@ -1,4 +1,4 @@
-package project;
+package main.java.project;
 
 import java.time.Clock;
 import java.time.Instant;

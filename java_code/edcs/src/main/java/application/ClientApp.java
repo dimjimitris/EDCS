@@ -1,9 +1,9 @@
-package edcs.write_update;
+package main.java.application;
 
 import org.json.JSONObject;
-import project.ClientLogic;
-import project.GlobalVariables;
-import project.Tuple;
+import main.java.project.ClientLogic;
+import main.java.project.GlobalVariables;
+import main.java.project.Tuple;
 
 import java.io.IOException;
 import java.util.ArrayList;

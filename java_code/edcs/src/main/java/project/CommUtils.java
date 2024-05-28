@@ -1,4 +1,4 @@
-package project;
+package main.java.project;
 
 import java.io.*;
 import java.net.Socket;
@@ -8,7 +8,7 @@ import org.json.JSONObject;
 
 public class CommUtils {
     private static final int HEADER_LENGTH = GlobalVariables.HEADER_LENGTH;
-    
+
     public static JSONObject recMsg(Socket clientSocket) throws EOFException, IOException {
         InputStream inputStream = clientSocket.getInputStream();
         DataInputStream dataInputStream = new DataInputStream(inputStream);
