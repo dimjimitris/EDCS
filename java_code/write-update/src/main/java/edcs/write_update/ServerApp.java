@@ -8,11 +8,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class App {
+public class ServerApp {
     public static void main( String[] args ) throws IOException {
         int serverIndex = Integer.parseInt(args[0]);
 
-        App.startServerProcess(serverIndex);
+        ServerApp.startServerProcess(serverIndex);
     }
 
     private static void startServerProcess(int serverIndex) throws IOException {

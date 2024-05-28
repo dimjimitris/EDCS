@@ -58,7 +58,12 @@ public class ClientApp {
 
                 } else if (command.equals("write") && parts.length == 3) {
                     int memAddress = Integer.parseInt(parts[1]);
-                    Object data = parts[2];
+                    Object data;
+                    try {
+                        data = Integer.parseInt(parts[2]);
+                    } catch (NumberFormatException e) {
+                        data = parts[2];
+                    }
 
                     JSONObject result = client.write(memAddress, data);
                     System.out.println("Write to " + memAddress + ": " + result);

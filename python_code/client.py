@@ -33,7 +33,11 @@ def main():
 
             elif command == "write" and len(user_input) == 3:
                 mem_address = int(user_input[1])
-                data = user_input[2]
+                data = None
+                try:
+                    data = int(user_input[2])
+                except:
+                    data = user_input[2]
                 result = client.write(mem_address, data)
                 print(f"Write to {mem_address}: {result}")
 

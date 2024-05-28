@@ -25,11 +25,6 @@ class Client:
         return data
 
     def write(self, mem_address, data):
-        try:
-            data = int(data)
-        except:
-            pass
-
         cu.send_msg(
             self.s,
             {
