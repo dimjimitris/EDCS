@@ -547,13 +547,13 @@ public class Server {
 
         logMsg("[UPDATE SHARED COPIES] " + updateValue);
 
-        if (!updateValue.get("status").equals("success")) {
+        if (updateValue.getInt("status") != GlobalVariables.SUCCESS) {
             JSONArray failedAddressAux = updateValue.optJSONArray("server_address");
             if (failedAddressAux == null) {
                 failedAddressAux = addressChain.getJSONArray(0);
             }
 
-            logMsg("[UPDATE SHARED COPIES] " + failedAddressAux);
+            logMsg("[UPDATE SHARED COPIES] failure address: " + failedAddressAux);
 
             Tuple<String, Integer> failedAddress = new Tuple<>(failedAddressAux.getString(0), failedAddressAux.getInt(1));
 
@@ -607,7 +607,7 @@ public class Server {
                 "UPDATE CACHE"
         );
 
-        if (!response.get("status").equals(GlobalVariables.SUCCESS) && !response.has("server_address")) {
+        if (response.getInt("status") != GlobalVariables.SUCCESS && !response.has("server_address")) {
             JSONArray failedServer = new JSONArray();
             failedServer.put(nextAddress.getX());
             failedServer.put(nextAddress.getY());
