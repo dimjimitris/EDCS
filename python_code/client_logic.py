@@ -71,3 +71,18 @@ class Client:
         )
         data = cu.rec_msg(self.s)
         return data
+    
+    def release_lock(self, mem_address, ltag):
+        cu.send_msg(
+            self.s,
+            {
+                "type": "serve_release_lock",
+                "args": [
+                    mem_address,
+                    ltag,
+                    True,
+                ],
+            }
+        )
+        data = cu.rec_msg(self.s)
+        return data
