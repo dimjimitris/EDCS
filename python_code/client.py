@@ -20,7 +20,12 @@ def main():
 
     while True:
         try:
-            user_input = input("Enter command (read <address> | write <address> <data> | disconnect): ").strip()
+            user_input = input("Enter command (\n\
+                                read <address>\n\
+                                write <address> <data>\n\
+                                lock <address>\n\
+                                unlock <address> <lease tag>\n\
+                                dumpcache | disconnect): ").strip()
             if not user_input:
                 continue
 
@@ -40,6 +45,21 @@ def main():
                     data = user_input[2]
                 result = client.write(mem_address, data)
                 print(f"Write to {mem_address}: {result}")
+
+            elif command == "lock" and len(user_input) == 2:
+                mem_address = int(user_input[1])
+                result = client.acquire_lock(mem_address)
+                print(f"Lock {mem_address}: {result}")
+
+            elif command == "unlock" and len(user_input) == 3:
+                mem_address = int(user_input[1])
+                lease_tag = int(user_input[2])
+                result = client.release_lock(mem_address, lease_tag)
+                print(f"Unlock {mem_address}: {result}")
+
+            elif command == "dumpcache":
+                result = client.dump_cache()
+                print(f"Dump cache: {result}")
 
             elif command == "disconnect":
                 client.disconnect()

@@ -102,6 +102,8 @@ class Server:
                 return_data = self.serve_release_lock(client_address, *args)
             elif message["type"] == "serve_update_cache":
                 return_data = self.serve_update_cache(client_address, *args)
+            elif message["type"] == "serve_dump_cache":
+                return_data = self.serve_dump_cache(client_address)
             else:
                 return_data = {
                     "status": gv.INVALID_OPERATION,
@@ -558,6 +560,23 @@ class Server:
             f"[UPDATE SHARED COPIES] COPY HOLDERS: {self.memory_manager.get_copy_holders(memory_address)}"
         )
         print("-" * 50)
+
+    def serve_dump_cache(
+        self,
+        client_address: tuple[str, int],
+    ):
+        """
+        Description:
+        - Dump the server's cache
+        """
+        log_msg(f"[DUMP CACHE REQUEST] server {self.server_address}, client {client_address}")
+        cache_items = [{"address": k, **item.json()} for k, item in self.shared_cache.items()]
+
+        return {
+            "status": gv.SUCCESS,
+            "message": "cache dumped",
+            "cache": cache_items,
+        }
 
     def _update_local_copy(
         self,

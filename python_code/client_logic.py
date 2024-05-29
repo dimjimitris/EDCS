@@ -25,6 +25,9 @@ class Client:
         return data
 
     def write(self, mem_address, data):
+        """
+        Write data to memory address
+        """
         cu.send_msg(
             self.s,
             {
@@ -42,6 +45,9 @@ class Client:
         return data
 
     def read(self, mem_address):
+        """
+        read data from memory address
+        """
         cu.send_msg(
             self.s,
             {
@@ -58,6 +64,9 @@ class Client:
         return data
 
     def acquire_lock(self, mem_address):
+        """
+        Acquire lock for item at memory address
+        """
         cu.send_msg(
             self.s,
             {
@@ -73,6 +82,11 @@ class Client:
         return data
     
     def release_lock(self, mem_address, ltag):
+        """
+        Release lock for item at memory address
+
+        ltag: lease tag when the lock was acquired
+        """
         cu.send_msg(
             self.s,
             {
@@ -84,5 +98,13 @@ class Client:
                 ],
             }
         )
+        data = cu.rec_msg(self.s)
+        return data
+
+    def dump_cache(self):
+        """
+        Dump the cache of the server
+        """
+        cu.send_msg(self.s, {"type": "serve_dump_cache"})
         data = cu.rec_msg(self.s)
         return data
