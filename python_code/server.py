@@ -10,7 +10,8 @@ import time_utils as tu
 CONNECTION_TIMEOUT = gv.CONNECTION_TIMEOUT
 LEASE_TIMEOUT = gv.LEASE_TIMEOUT
 
-
+# simple logging function which adds (or not) a timestamp at the
+# start of the message
 def log_msg(msg: str, datetime: bool = False):
     print(f"{tu.get_datetime() if datetime else ''}{msg}")
 
@@ -47,6 +48,10 @@ class Server:
             log_msg(f"[LISTENING] Server is listening on {self.server_address}")
 
             while True:
+                # accept new connection
+                # and create a new thread to handle the client
+                # this allows for multiple clients to connect to the server
+                # at the same time
                 client_socket, client_address = server_socket.accept()
                 thread = th.Thread(
                     target=self.handle_client, args=(client_socket, client_address)
@@ -59,9 +64,16 @@ class Server:
     def handle_client(
         self, client_socket: socket.socket, client_address: tuple[str, int]
     ):
+        """
+        Description:
+        - Handle a client connection by receiving messages from the client
+        and sending back the appropriate responses
+        """
         log_msg(f"[NEW CONNECTION] {client_address} connected.")
         connected = True
 
+        # keep the connection open until the client sends a disconnect message
+        # or communication errors occur
         while connected:
             return_data = None
             message = None
@@ -107,6 +119,7 @@ class Server:
         log_msg(
             f"[DISCONNECTED] server {self.server_address}, client {client_address}."
         )
+        
         # client_socket.shutdown(socket.SHUT_RDWR)
         client_socket.close()
 
@@ -119,6 +132,29 @@ class Server:
         cascade: bool,
         lease_timeout=LEASE_TIMEOUT,
     ):
+        """
+        Description:
+        - Handle a read request from a client
+        - If the memory address is in the server's memory range, the server
+        reads the data from its memory and sends it back to the client
+        - If the memory address is not in the server's memory range, the server
+        forwards the request to the appropriate server
+
+        We should explain the cascade parameter: if cascade is True, the server
+        will forward the request if it doesn't find it locally. If cascade is False,
+        the server will return an error if it doesn't find the memory address locally.
+
+        Clients outside the system are setup to make requests with cascade=True.
+
+        Thus, we have the following behaviour:
+        cascade=True, address is local: outside client made a request to the server that owns the memory address
+        cascade=True, address is not local: outside client made a request to a server that doesn't own the memory address
+        cascade=False, address is local: inside client (another server) made a request to the server that owns the memory address
+        cascade=False, address is not local: this is the most interesting one and it should never happen. It occurs when a server
+        wants to find a memory address that is not local to it. This server requests the address from the server that it thinks owns
+        the address, but that server doesn't have the memory address either. Our system is setup such that all servers should know
+        which server has what memory addresses, thus this should never happen.
+        """
         # potentially new holder of the memory address
         copy_holder = (copy_holder_ip, copy_holder_port)
         log_msg(
@@ -132,10 +168,16 @@ class Server:
             }
 
         if host_server == self.server_address:
+            # if the memory address is in the server's memory range
+            # read the data from the server's memory and send it back to the client
+            # we use locks to ensure atomicity
             try:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
                 if not ret_val or ltag == -1 or wtag == -1:
                     return {"status": gv.ERROR, "message": "Failed to acquire lock"}
+                # cascade=False means this should be the server that owns the memory address
+                # and the copyholder address should be from another server and not an outside client
+                # thus, we add the copy holder to the memory address
                 if not cascade and copy_holder != self.server_address:
                     self.memory_manager.add_copy_holder(memory_address, copy_holder)
                 data = self.memory_manager.read_memory(memory_address)
@@ -154,6 +196,10 @@ class Server:
             return response
 
         if memory_address in self.shared_cache:
+            # if the memory address is in the server's shared cache
+            # read the data from the shared cache and send it back to the client
+            # we request a lock from the server that owns the memory address
+            # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
             ac_lock_val = self.serve_acquire_lock(
                 self.server_address, memory_address, lease_timeout, True
             )
@@ -175,6 +221,7 @@ class Server:
 
                 # fetch data from server
                 if rel_lock_val["wtag"] != self.shared_cache[memory_address].wtag:
+                    # stale data in cache, fetch from server
                     self.shared_cache.pop(memory_address)
                     return self.serve_read(
                         client_address,
@@ -194,6 +241,7 @@ class Server:
                     "ltag": ac_lock_val["ltag"],
                 }
             else:  # give up and then just communicate with the server
+                # stale data in cache, fetch from server
                 self.shared_cache.pop(memory_address)
                 return self.serve_read(
                     client_address,
@@ -203,7 +251,7 @@ class Server:
                     cascade,
                 )
 
-        if not cascade:
+        if not cascade: # this should never happen (see explanation above)
             return {
                 "status": gv.ERROR,
                 "message": f"Read host address {host_server} is not the server address {self.server_address}",
@@ -219,6 +267,7 @@ class Server:
             "READ",
         )
 
+        # if requested from remote server, update shared cache
         if remote_return["status"] == gv.SUCCESS:
             self.shared_cache[memory_address] = mp.MemoryItem(
                 remote_return["data"], remote_return["istatus"], remote_return["wtag"]
@@ -234,6 +283,17 @@ class Server:
         data,
         cascade: bool,
     ):
+        """
+        Description:
+        - Handle a write request from a client
+        - If the memory address is in the server's memory range, the server
+        writes the data to its memory and sends back a success message to the client.
+        The server also sends updates to all copyholders of the memory address.
+        This is the main implementation of the write-update protocol.
+
+        - If the memory address is not in the server's memory range, the server
+        forwards the request to the appropriate server
+        """
         copy_holder = (copy_holder_ip, copy_holder_port)
         log_msg(
             f"[WRITE REQUEST] server {self.server_address}, client {client_address}, address {memory_address}"
@@ -250,6 +310,9 @@ class Server:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
                 if not ret_val or ltag == -1 or wtag == -1:
                     return {"status": gv.ERROR, "message": "Failed to acquire lock"}
+                # cascade=False means this should be the server that owns the memory address
+                # and the copyholder address should be from another server and not an outside client
+                # thus, we add the copy holder to the memory address
                 if not cascade and copy_holder != self.server_address:
                     self.memory_manager.add_copy_holder(memory_address, copy_holder)
                 self.memory_manager.write_memory(memory_address, data)
@@ -267,12 +330,14 @@ class Server:
             )
             return response
 
-        if not cascade:
+        if not cascade: # this should never happen (see explanation above)
             return {
                 "status": gv.ERROR,
                 "message": f"Write host address {host_server} is not the server address {self.server_address}",
             }
 
+        # if the memory address is not in the server's memory range
+        # forward the request to the appropriate server
         ip, port = self.server_address
         return self._get_from_remote(
             client_address,
@@ -282,6 +347,9 @@ class Server:
             [ip, port, memory_address, data, False],
             "WRITE",
         )
+
+    # serve_acquire_lock and serve_release_lock are used to acquire and release locks
+    # they have very similar build to serve_read and serve_write
 
     def serve_acquire_lock(
         self,
@@ -408,6 +476,10 @@ class Server:
         status: str,
         wtag: int,
     ):
+        """
+        Description:
+        - Update the local cache copy of a memory address and notify the next server in the address chain
+        """
         aux_address_chain = []
         for address in address_chain:
             aux_address_chain.append((address[0], address[1]))
@@ -423,7 +495,7 @@ class Server:
                 "message": "Memory address out of range",
             }
 
-        if host_server != self.server_address:
+        if host_server != self.server_address: # a host server doesn't need to update its cache
             self._update_local_copy(memory_address, data, status, wtag)
 
         if len(address_chain) > 0:
@@ -444,6 +516,17 @@ class Server:
         client_address: tuple[str, int],
         memory_address: int,
     ):
+        """
+        Description: a server starts updating shared copies of a memory address.
+        The server keeps track of a copyholder address chain and instead of sending
+        requests to all copyholders at once, it sends a request to the first copyholder
+        in the chain and then each copyholder sends a request to the next copyholder in the chain.
+
+        The server keeps track of the copyholder address chain and if a copyholder fails to update
+        the shared copy, the server removes all copyholders after the failed copyholder in the chain (
+        including the failed copyholder itself). This is done to ensure that the shared copies are
+        consistent across all servers.
+        """
         address_chain = self.memory_manager.get_copy_holders(memory_address)
 
         update_value = self.serve_update_cache(
@@ -461,7 +544,7 @@ class Server:
         if update_value["status"] != gv.SUCCESS:
             failed_address = update_value.get("server_address", None)
             if failed_address is None:
-                failed_address = address_chain[0]
+                failed_address = address_chain[0] # the address chain has at least one item if this function is called
             failed_address = (
                 failed_address[0],
                 failed_address[1],
@@ -504,6 +587,9 @@ class Server:
             "UPDATE CACHE",
         )
 
+        # if the next server in the chain fails to update the shared copy
+        # then this server is the first to fail and we need to update the copyholder list
+        # to remove all servers after the failed server in the chain (including the failed server)
         if ret_val["status"] != gv.SUCCESS and "server_address" not in ret_val:
             ret_val["server_address"] = next_address
 
@@ -518,6 +604,11 @@ class Server:
         args: list[any],
         log_type: str,
     ):
+        """
+        Description:
+        Wrappen function to connect to a remote server and send a message.
+        It is used when our requests want to retrieve something from another server.
+        """
         try:
             host_server_socket = self._connect_to_server(
                 host_server, CONNECTION_TIMEOUT
@@ -597,7 +688,6 @@ class Server:
             server_socket.close()
 
 
-# just for testing purposes...
 def start_server_process(server_index: int):
     memory_size = gv.MEMORY_SIZE
     server_count = len(gv.SERVERS)
