@@ -206,6 +206,7 @@ class Server:
                 self.server_address, memory_address, lease_timeout, True
             )
             if ac_lock_val["status"] != gv.SUCCESS:
+                self.shared_cache.pop(memory_address)
                 return ac_lock_val
 
             if ac_lock_val["wtag"] == self.shared_cache[memory_address].wtag:
@@ -219,7 +220,7 @@ class Server:
 
                 if rel_lock_val["status"] != gv.SUCCESS:
                     self.shared_cache.pop(memory_address)
-                    return {"status": gv.ERROR, "message": "Failed to release lock"}
+                    return rel_lock_val
 
                 # fetch data from server
                 if rel_lock_val["wtag"] != self.shared_cache[memory_address].wtag:

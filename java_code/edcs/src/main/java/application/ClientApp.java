@@ -36,7 +36,13 @@ public class ClientApp {
 
         while (true) {
             try {
-                System.out.print("Enter command (read <address> | write <address> <data> | disconnect): ");
+                System.out.print(
+                        "Enter command (\n" +
+                                "read <address>\n" +
+                                "write <address> <data>\n" +
+                                "lock <address>\n" +
+                                "unlock <address> <lease tag>\n" +
+                                "dumpcache | disconnect): ");
                 String userInput = scanner.nextLine().trim();
                 if (userInput.isEmpty()) {
                     continue;
@@ -62,6 +68,18 @@ public class ClientApp {
                     JSONObject result = client.write(memAddress, data);
                     System.out.println("Write to " + memAddress + ": " + result);
 
+                } else if (command.equals("lock") && parts.length == 2) {
+                    int memAddress = Integer.parseInt(parts[1]);
+                    JSONObject result = client.acquireLock(memAddress);
+                    System.out.println("Lock " + memAddress + ": " + result);
+                } else if (command.equals("unlock") && parts.length == 3) {
+                    int memAddress = Integer.parseInt(parts[1]);
+                    long leaseTime = Long.parseLong(parts[2]);
+                    JSONObject result = client.releaseLock(memAddress, leaseTime);
+                    System.out.println("Unlock " + memAddress + ": " + result);
+                } else if (command.equals("dumpcache")) {
+                    JSONObject result = client.dumpCache();
+                    System.out.println("Dump cache: " + result);
                 } else if (command.equals("disconnect")) {
                     client.disconnect();
                     break;

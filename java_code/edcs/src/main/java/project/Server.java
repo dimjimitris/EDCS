@@ -123,6 +123,9 @@ public class Server {
                 case "serve_update_cache":
                     returnData = serveUpdateCache(clientAddress, args.getJSONArray(0), args.getInt(1), args.get(2), args.getString(3), args.getLong(4));
                     break;
+                case "serve_dump_cache":
+                    returnData = serveDumpCache(clientAddress);
+                    break;
                 default:
                     returnData = new JSONObject();
                     returnData.put("status", GlobalVariables.INVALID_OPERATION);
@@ -219,6 +222,7 @@ public class Server {
         if (sharedMemory.containsKey(memoryAddress)) {
             JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leastTimeout, true);
             if (acLockVal.getInt("status") != GlobalVariables.SUCCESS) {
+                sharedMemory.remove(memoryAddress);
                 return acLockVal;
             }
             if (acLockVal.getLong("wtag") == sharedMemory.get(memoryAddress).getWtag()) {
@@ -515,6 +519,30 @@ public class Server {
         JSONObject response = new JSONObject();
         response.put("status", GlobalVariables.SUCCESS);
         response.put("message", "cache updated");
+        return response;
+    }
+
+    public JSONObject serveDumpCache(
+            Tuple<String, Integer> clientAddress
+    ) {
+        logMsg("[DUMP CACHE REQUEST] server " + serverAddress + ", client " + clientAddress.toString());
+        JSONArray cacheItems = new JSONArray();
+        for(Map.Entry<Integer, MemoryItem> e : sharedMemory.entrySet()) {
+            int k = e.getKey();
+            MemoryItem mi = e.getValue();
+
+            JSONObject cacheItem = new JSONObject();
+            cacheItem.put("address", k);
+            cacheItem.put("data", mi.getData());
+            cacheItem.put("istatus", mi.getStatus());
+            cacheItem.put("wtag", mi.getWtag());
+
+            cacheItems.put(cacheItem);
+        }
+        JSONObject response = new JSONObject();
+        response.put("status", GlobalVariables.SUCCESS);
+        response.put("message", "cache dumped");
+        response.put("cache", cacheItems);
         return response;
     }
 

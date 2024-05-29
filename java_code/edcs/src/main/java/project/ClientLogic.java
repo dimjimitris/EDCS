@@ -90,4 +90,12 @@ public class ClientLogic {
         JSONObject resp = CommUtils.recMsg(socket);
         return resp;
     }
+
+    public JSONObject dumpCache() throws IOException {
+        JSONObject msg = new JSONObject();
+        msg.put("type", "serve_dump_cache");
+        CommUtils.sendMsg(socket, msg);
+        JSONObject resp = CommUtils.recMsg(socket);
+        return resp;
+    }
 }

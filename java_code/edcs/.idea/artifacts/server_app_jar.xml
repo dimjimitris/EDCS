@@ -2,6 +2,9 @@
   <artifact type="jar" name="server-app:jar">
     <output-path>$PROJECT_DIR$/out/artifacts/server_app_jar</output-path>
     <root id="archive" name="server-app.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/src/META-INF/SERVER/MANIFEST.MF" />
+      </element>
       <element id="module-output" name="edcs" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/json/json/20240303/json-20240303.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/io/github/cdimascio/dotenv-java/2.3.2/dotenv-java-2.3.2.jar" path-in-jar="/" />
