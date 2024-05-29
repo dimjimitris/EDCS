@@ -63,12 +63,26 @@ public class ClientLogic {
         return resp;
     }
 
-    public JSONObject acquire_lock(int memoryAddress) throws IOException {
+    public JSONObject acquireLock(int memoryAddress) throws IOException {
         JSONObject msg = new JSONObject();
         msg.put("type", "serve_acquire_lock");
         JSONArray args = new JSONArray();
         args.put(memoryAddress);
         args.put(GlobalVariables.LEASE_TIMEOUT);
+        args.put(true);
+        msg.put("args", args);
+
+        CommUtils.sendMsg(socket, msg);
+        JSONObject resp = CommUtils.recMsg(socket);
+        return resp;
+    }
+
+    public JSONObject releaseLock(int memoryAddress, long ltag) throws IOException {
+        JSONObject msg = new JSONObject();
+        msg.put("type", "serve_release_lock");
+        JSONArray args = new JSONArray();
+        args.put(memoryAddress);
+        args.put(ltag);
         args.put(true);
         msg.put("args", args);
 
