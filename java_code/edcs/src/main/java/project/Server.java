@@ -391,7 +391,7 @@ public class Server {
         if (hostServer.equals(serverAddress)) {
             JSONObject response = new JSONObject();
             try {
-                Tuple2<Boolean, Long, Long> releaseValue = memoryManager.acquireLock(memoryAddress, null);
+                Tuple2<Boolean, Long, Long> releaseValue = memoryManager.acquireLock(memoryAddress, (long) leaseTimeout);
                 boolean retVal = releaseValue.getX();
                 long ltag = releaseValue.getY();
                 long wtag = releaseValue.getZ();

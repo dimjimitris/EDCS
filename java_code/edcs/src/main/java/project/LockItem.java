@@ -30,6 +30,7 @@ public class LockItem {
                 @Override
                 public void run() {
                     releaseLock(finalLtag);
+                    System.out.println("[LOCK TIMER] lock released");
                 }
             }, leaseSeconds * 1000L);
         }

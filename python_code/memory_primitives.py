@@ -56,7 +56,11 @@ class LockItem:
         # this client could potentially fail and keep the lock forever, thus
         # we release the lock after the lease_seconds
         if ret_val and lease_seconds is not None:
-            th.Timer(lease_seconds, self.release_lock, args=(self.ltag,)).start()
+            ltag = self.ltag
+            def timer_callback(ltag):
+                self.release_lock(ltag)
+                print("[LOCK TIMER] lock released")
+            th.Timer(lease_seconds, timer_callback, args=(ltag,)).start()
 
         return ret_val, ltag
 
