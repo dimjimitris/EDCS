@@ -40,6 +40,10 @@ public class MemoryManager {
         return item;
     }
 
+    // return:
+    // - retVal: true if the lock is acquired, false otherwise
+    // - ltag: the lock tag
+    // - wtag: the write tag
     public Tuple2<Boolean, Long, Long> acquireLock(int address, Long leaseSeconds) throws InterruptedException {
         LockItem lockItem = this.locks.get(address);
         
@@ -52,6 +56,10 @@ public class MemoryManager {
         return new Tuple2<>(lockResult.getX(), lockResult.getY(), this.memory.get(address).getWtag());
     }
 
+    // return:
+    // - retVal: true if the lock is released, false otherwise
+    // - ltag: the lock tag
+    // - wtag: the write tag
     public Tuple2<Boolean, Long, Long> releaseLock(int address, long leaseLtag) {
         LockItem lockItem = this.locks.get(address);
         
@@ -81,6 +89,8 @@ public class MemoryManager {
         return new ArrayList<>(this.copyHolders.getOrDefault(address, Collections.emptyList()));
     }
 
+    // return:
+    // - true: if the holder is in the copyHolders list
     public boolean addCopyHolder(int address, Tuple<String, Integer> holder) {
         List<Tuple<String, Integer>> holders = this.copyHolders.get(address);
         
@@ -98,6 +108,8 @@ public class MemoryManager {
         return true;
     }
 
+    // return:
+    // - true: if the holder is not in the copyHolders list
     public boolean removeCopyHolder(int address, Tuple<String, Integer> holder) {
         List<Tuple<String, Integer>> holders = this.copyHolders.get(address);
         

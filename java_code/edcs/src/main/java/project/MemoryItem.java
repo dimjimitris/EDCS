@@ -5,8 +5,8 @@ import java.util.Map;
 
 public class MemoryItem {
     private Object data;
-    private String status;
-    private Long wtag;
+    private String status; // "E": exclusive, "S": shared
+    private Long wtag; // last write tag
 
     public MemoryItem(Object data, String status) {
         this(data, status, TimeUtils.getTime());

@@ -41,7 +41,7 @@ class LockItem:
 
         return: (bool, int) -> (success, ltag)
         """
-        ret_val, ltag = None, -1
+        ret_val, ltag = False, -1
         # we want to acquire the lock and increment the ltag atomically
         # thus we use a condition variable to wait until the lock is acquired
         # and then increment the ltag
@@ -56,7 +56,6 @@ class LockItem:
         # this client could potentially fail and keep the lock forever, thus
         # we release the lock after the lease_seconds
         if ret_val and lease_seconds is not None:
-            ltag = self.ltag
             def timer_callback(ltag):
                 self.release_lock(ltag)
                 print("[LOCK TIMER] lock released")

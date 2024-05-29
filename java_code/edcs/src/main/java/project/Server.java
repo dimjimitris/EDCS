@@ -39,6 +39,7 @@ public class Server {
         this.sharedMemory = new HashMap<>();
     }
 
+    // start the server and listen for incoming connections from clients
     public void start() throws IOException {
         ServerSocket serverSocket = null;
         try {
@@ -49,6 +50,10 @@ public class Server {
             logMsg("[LISTENING] Server is listening on " + serverAddress.toString());
 
             while (true) {
+                // accept new connection
+                // and create a new thread to handle the client
+                // this allows for multiple clients to connect to the server
+                // at the same time
                 Socket clientSocket = serverSocket.accept();
                 Thread thread = new Thread(() -> {
                     try {
@@ -69,6 +74,8 @@ public class Server {
         }
     }
 
+    // handle a client connection by receiving messages from the client and
+    // sending back the appropriate responses
     private void handleClient(Socket clientSocket) throws IOException {
         InetSocketAddress socketAddress = (InetSocketAddress) clientSocket.getRemoteSocketAddress();
         String IP = socketAddress.getAddress().getHostAddress();
@@ -78,6 +85,8 @@ public class Server {
         logMsg("[NEW CONNECTION] " + clientAddress.toString() + " connected.");
         boolean connected = true;
 
+        // keep the connection open until the client sends a disconnect message
+        // or communication errors occur
         while (connected) {
             JSONObject returnData = null;
             JSONObject message = null;
@@ -163,6 +172,29 @@ public class Server {
         );
     }
 
+    /*
+    Description:
+    - Handle a read request from a client
+    - If the memory address is in the server's memory range, the server
+    reads the data from its memory and sends it back to the client
+    - If the memory address is not in the server's memory range, the server
+    forwards the request to the appropriate server
+
+    We should explain the cascade parameter: if cascade is True, the server
+    will forward the request if it doesn't find it locally. If cascade is False,
+    the server will return an error if it doesn't find the memory address locally.
+
+    Clients outside the system are setup to make requests with cascade=True.
+
+    Thus, we have the following behaviour:
+    cascade=true, address is local: outside client made a request to the server that owns the memory address
+    cascade=true, address is not local: outside client made a request to a server that doesn't own the memory address
+    cascade=false, address is local: inside client (another server) made a request to the server that owns the memory address
+    cascade=false, address is not local: this is the most interesting one and it should never happen. It occurs when a server
+    wants to find a memory address that is not local to it. This server requests the address from the server that it thinks owns
+    the address, but that server doesn't have the memory address either. Our system is setup such that all servers should know
+    which server has what memory addresses, thus this should never happen.
+    * */
     public JSONObject serveRead(
             Tuple<String, Integer> clientAddress,
             String copyHolderIP,
@@ -184,6 +216,9 @@ public class Server {
         }
 
         if (hostServer.equals(serverAddress)) {
+            // if the memory address is in the server's memory range
+            // read the data from the server's memory and send it back to the client
+            // we use locks to ensure atomicity
             MemoryItem data = new MemoryItem("missing", "I", -1);
             long ltag = -1;
             try {
@@ -199,6 +234,9 @@ public class Server {
                     return response;
                 }
 
+                // cascade=false means this should be the server that owns the memory address
+                // and the copyholder address should be from another server and not an outside client
+                // thus, we add the copy holder to the memory address
                 if (!cascade && !copyHolder.equals(hostServer)) {
                     memoryManager.addCopyHolder(memoryAddress, copyHolder);
                 }
@@ -220,6 +258,10 @@ public class Server {
             return response;
         }
         if (sharedMemory.containsKey(memoryAddress)) {
+            // if the memory address is in the server's shared cache
+            // read the data from the shared cache and send it back to the client
+            // we request a lock from the server that owns the memory address
+            // we compare the wtags (last write tags) to make sure that the cached data is up-to-date
             JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leastTimeout, true);
             if (acLockVal.getInt("status") != GlobalVariables.SUCCESS) {
                 sharedMemory.remove(memoryAddress);
@@ -236,6 +278,7 @@ public class Server {
                 }
 
                 if (relLockVal.getLong("wtag") != sharedMemory.get(memoryAddress).getWtag()) {
+                    // stale data in cache, fetch from server
                     sharedMemory.remove(memoryAddress);
                     return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
                 }
@@ -251,12 +294,13 @@ public class Server {
                 return response;
             }
             else {
+                // stale data in cache, fetch from server
                 sharedMemory.remove(memoryAddress);
                 return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
             }
         }
 
-        if (!cascade) {
+        if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
             response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
@@ -280,6 +324,7 @@ public class Server {
                 args,
                 "READ");
 
+        // if requested from remote server, update shared cache
         if (response.getInt("status") == GlobalVariables.SUCCESS) {
             sharedMemory.put(
                     memoryAddress,
@@ -292,6 +337,17 @@ public class Server {
         return response;
     }
 
+    /*
+    Description:
+    - Handle a write request from a client
+    - If the memory address is in the server's memory range, the server
+    writes the data to its memory and sends back a success message to the client.
+    The server also sends updates to all copyholders of the memory address.
+    This is the main implementation of the write-update protocol.
+
+    - If the memory address is not in the server's memory range, the server
+    forwards the request to the appropriate server
+    * */
     public JSONObject serveWrite(
             Tuple<String, Integer> clientAddress,
             String copyHolderIP,
@@ -326,11 +382,15 @@ public class Server {
                     response.put("message", "Failed to acquire lock");
                     return response;
                 }
+
+                // cascade=False means this should be the server that owns the memory address
+                // and the copyholder address should be from another server and not an outside client
+                // thus, we add the copy holder to the memory address
                 if (!cascade && !copyHolder.equals(hostServer)) {
                     memoryManager.addCopyHolder(memoryAddress, copyHolder);
                 }
                 memoryManager.writeMemory(memoryAddress, data);
-
+                // update shared copies in the system, if they exist!
                 if (memoryManager.readMemory(memoryAddress).getStatus().equals("S")) {
                     updateSharedCopies(clientAddress, memoryAddress);
                 }
@@ -347,13 +407,15 @@ public class Server {
             return response;
         }
 
-        if (!cascade) {
+        if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
             response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
             return response;
         }
 
+        // if the memory address is not in the server's memory range
+        // forward the request to the appropriate server
         String IP = serverAddress.getX();
         int port = serverAddress.getY();
 
@@ -371,6 +433,9 @@ public class Server {
                 args,
                 "WRITE");
     }
+
+    // serveAcquireLock and serveReleaseLock are used to acquire and release locks
+    // they have very similar build to serveRead and serveWrite
 
     public JSONObject serveAcquireLock(
             Tuple<String, Integer> clientAddress,
@@ -484,6 +549,10 @@ public class Server {
         return getFromRemote(clientAddress, memoryAddress, hostServer, "serve_release_lock", args, "RELEASE LOCK");
     }
 
+    /*
+    Description:
+    - Update the local cache copy of a memory address and notify the next server in the address chain
+    * */
     public JSONObject serveUpdateCache(
             Tuple<String, Integer> clientAddress,
             JSONArray addressChain,
@@ -522,6 +591,10 @@ public class Server {
         return response;
     }
 
+    /*
+     Description:
+    - Dump the server's cache, used for debugging purposes
+    * */
     public JSONObject serveDumpCache(
             Tuple<String, Integer> clientAddress
     ) {
@@ -546,6 +619,17 @@ public class Server {
         return response;
     }
 
+    /*
+    Description: a server starts updating shared copies of a memory address.
+    The server keeps track of a copyholder address chain and instead of sending
+    requests to all copyholders at once, it sends a request to the first copyholder
+    in the chain and then each copyholder sends a request to the next copyholder in the chain.
+
+    The server keeps track of the copyholder address chain and if a copyholder fails to update
+    the shared copy, the server removes all copyholders after the failed copyholder in the chain (
+    including the failed copyholder itself). This is done to ensure that the shared copies are
+    consistent across all servers.
+    * */
     private void updateSharedCopies(
             Tuple<String, Integer> clientAddress,
             int memoryAddress
@@ -635,6 +719,9 @@ public class Server {
                 "UPDATE CACHE"
         );
 
+        // if the next server in the chain fails to update the shared copy
+        // then this server is the first to fail and we need to update the copyholder list
+        // to remove all servers after the failed server in the chain (including the failed server)
         if (response.getInt("status") != GlobalVariables.SUCCESS && !response.has("server_address")) {
             JSONArray failedServer = new JSONArray();
             failedServer.put(nextAddress.getX());
@@ -644,6 +731,11 @@ public class Server {
         return response;
     }
 
+    /*
+    Description:
+    Wrapper function to connect to a remote server and send a message.
+    It is used when our requests want to retrieve something from another server.
+    * */
     private JSONObject getFromRemote(
             Tuple<String, Integer> clientAddress,
             int memoryAddress,

@@ -173,6 +173,8 @@ class Server:
             # if the memory address is in the server's memory range
             # read the data from the server's memory and send it back to the client
             # we use locks to ensure atomicity
+            data = None
+            ltag = -1
             try:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
                 if not ret_val or ltag == -1 or wtag == -1:
@@ -222,7 +224,6 @@ class Server:
                     self.shared_cache.pop(memory_address)
                     return rel_lock_val
 
-                # fetch data from server
                 if rel_lock_val["wtag"] != self.shared_cache[memory_address].wtag:
                     # stale data in cache, fetch from server
                     self.shared_cache.pop(memory_address)
@@ -309,6 +310,7 @@ class Server:
             }
 
         if host_server == self.server_address:
+            ltag = -1
             try:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
                 if not ret_val or ltag == -1 or wtag == -1:
@@ -568,7 +570,7 @@ class Server:
     ):
         """
         Description:
-        - Dump the server's cache
+        - Dump the server's cache, used for debugging purposes
         """
         log_msg(f"[DUMP CACHE REQUEST] server {self.server_address}, client {client_address}")
         cache_items = [{"address": k, **item.json()} for k, item in self.shared_cache.items()]
@@ -626,7 +628,7 @@ class Server:
     ):
         """
         Description:
-        Wrappen function to connect to a remote server and send a message.
+        Wrapper function to connect to a remote server and send a message.
         It is used when our requests want to retrieve something from another server.
         """
         try:

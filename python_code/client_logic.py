@@ -6,6 +6,10 @@ import global_variables as gv
 
 
 class Client:
+    """
+    Description: software that runs on a client machine and provides
+    an interface to interact with the server.
+    """
     def __init__(
         self,
         server_address=random.choice(gv.SERVERS),

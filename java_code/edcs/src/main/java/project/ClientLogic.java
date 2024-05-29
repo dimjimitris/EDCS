@@ -7,6 +7,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+/*
+Description: software that runs on a client machine and provides
+an interface to interact with the server.
+* */
 public class ClientLogic {
     private Tuple<String, Integer> serverAddress;
     private Socket socket;
