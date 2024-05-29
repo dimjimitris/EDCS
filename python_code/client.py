@@ -8,24 +8,30 @@ import client_logic
 def main():
     parser = argparse.ArgumentParser(description="Client to connect to a memory server")
     parser.add_argument(
-        "-server", type=int, help="The index of the server in the list of servers, if this option is missing connect to a random server"
+        "-server",
+        type=int,
+        help="The index of the server in the list of servers, if this option is missing connect to a random server",
     )
     args = parser.parse_args()
 
     server_index = args.server
 
-    server_address = random.choice(gv.SERVERS) if server_index is None else gv.SERVERS[args.server]
+    server_address = (
+        random.choice(gv.SERVERS) if server_index is None else gv.SERVERS[args.server]
+    )
     client = client_logic.Client(server_address)
     client.connect()
 
     while True:
         try:
-            user_input = input("Enter command (\n\
-                                read <address>\n\
-                                write <address> <data>\n\
-                                lock <address>\n\
-                                unlock <address> <lease tag>\n\
-                                dumpcache | disconnect): ").strip()
+            user_input = input(
+                "Enter command (\n\
+read <address>\n\
+write <address> <data>\n\
+lock <address>\n\
+unlock <address> <lease tag>\n\
+dumpcache | disconnect): "
+            ).strip()
             if not user_input:
                 continue
 
@@ -66,7 +72,9 @@ def main():
                 break
 
             else:
-                print("Invalid command. Please use read <address>, write <address> <data>, or disconnect.")
+                print(
+                    "Invalid command. Please use read <address>, write <address> <data>, or disconnect."
+                )
 
         except KeyboardInterrupt:
             print("\nDisconnecting due to keyboard interrupt.")
