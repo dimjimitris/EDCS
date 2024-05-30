@@ -78,27 +78,28 @@ def test_acquire_and_release_lock(clients : list[cl.Client], local):
             print(f"Failed to release lock from server {client.server_address}: {e}")
 
 def test():
+    print("-" * 50)
     print("Testing connect")
     clients = test_connect()
-
+    print("-" * 50)
     print("Testing local write")
     test_write(clients, True)
-
+    print("-" * 50)
     print("Testing local read")
     test_read(clients, True)
-
+    print("-" * 50)
     print("Testing local acquire and release lock")
     test_acquire_and_release_lock(clients, True)
-
+    print("-" * 50)
     print("Testing remote write")
     test_write(clients, False)
-
+    print("-" * 50)
     print("Testing remote read")
     test_read(clients, False)
-
+    print("-" * 50)
     print("Testing remote acquire and release lock")
     test_acquire_and_release_lock(clients, False)
-
+    print("-" * 50)
     print("Testing disconnect")
     test_disconnect(clients)
 
