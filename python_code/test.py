@@ -1,6 +1,5 @@
 import client_logic as cl
 import global_variables as gv
-import time
 
 SERVERS = gv.SERVERS
 
@@ -110,12 +109,73 @@ def stale_cache():
     resp = client1.read(0) # cache should be updated
     print(f"Remote read response: {resp}")
 
+    resp = client1.dump_cache() # should see updated data
+    print(f"Remote dump cache response: {resp}")
+
     client1.disconnect()
 
+def corrupted_copy_holder_chain(index):
+    if index not in range(1, len(SERVERS)):
+        print("Invalid server index, give value 1 or 2")
+        return
+
+    clients : list[cl.Client] = []
+    for server in SERVERS:
+        client = cl.Client(server)
+        client.connect()
+        clients.append(client)
+
+    resp = clients[0].write(0, "test")
+    for client in clients:
+        client.read(0)
+
+    if index == 1:
+        input("Please turn off server 1 and press enter to continue")
+    else:
+        input("Please turn off server 2 and press enter to continue")
+
+    resp = clients[0].write(0, "test2")
+
+    if index == 1: # write will not have been propagated to server 2 and server 0 will have memory address 0 as "E" (Exclusive)
+        resp = clients[2].dump_cache()
+        print(f"Server 2 cache: {resp}")
+
+        resp = clients[0].read(0)
+        print(f"Server 0 read response: {resp}")
+
+    else: # write will have been propagated to server 1 and server 0 will have memory address 0 as "S" (Shared)
+        resp = clients[1].dump_cache()
+        print(f"Server 1 cache: {resp}")
+
+        resp = clients[0].read(0)
+        print(f"Server 0 read response: {resp}")
+
+    for client in clients:
+        try:
+            client.disconnect()
+        except Exception as e:
+            print(f"Failed to disconnect from server {client.server_address}: {e}")
 
 
+def test_write_cache():
+    client = cl.Client(SERVERS[1])
+    client.connect()
+    resp = client.write(0, "test")
+    print(f"Write response: {resp}")
+    resp = client.dump_cache()
+    print(f"Dump cache response: {resp}")
+    client.disconnect()
 
-def test():
+def test_read_cache():
+    client = cl.Client(SERVERS[1])
+    client.connect()
+    resp = client.read(0)
+    print(f"Read response: {resp}")
+    resp = client.dump_cache()
+    print(f"Dump cache response: {resp}")
+    client.disconnect()
+
+def test_basic():
     print("-" * 50)
     print("Testing connect")
     clients = test_connect()
@@ -147,10 +207,34 @@ def test():
     print("Testing disconnect")
     test_disconnect(clients)
     print("-" * 50)
+
+def test_cache():
     print("Testing sleeping cache")
     stale_cache()
     print("-" * 50)
     
+def test_copy_holder_chain(index):
+    print(f"Testing corrupted copy holder chain with server {index} down")
+    corrupted_copy_holder_chain(index)
+    print("-" * 50)
 
 if __name__ == "__main__":
-    test()
+    print("Testing basic functionality")
+    input("Put all the server up and running and press enter to continue")
+    test_basic()
+    print("Testing write cache")
+    input("Put all the server up and running and press enter to continue")
+    test_write_cache()
+    print("Testing read cache")
+    input("Put all the server up and running and press enter to continue")
+    test_read_cache()
+    print("Testing cache")
+    input("Put all the server up and running and press enter to continue")
+    test_cache()
+    print("Testing copy holder chain with middle server down")
+    input("Put all the server up and running and press enter to continue")
+    test_copy_holder_chain(1)
+    print("Testing copy holder chain with last server down")
+    input("Put all the server up and running and press enter to continue")
+    test_copy_holder_chain(2)
+
