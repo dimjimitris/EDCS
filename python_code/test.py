@@ -40,6 +40,17 @@ def test_write(clients : list[cl.Client], local):
         except Exception as e:
             print(f"Failed to write data to server {client.server_address}: {e}")
 
+def test_dump_cache(clients : list[cl.Client]):
+    for client in clients:
+        try:
+            resp = client.dump_cache()
+            if resp["status"] != gv.SUCCESS:
+                print(f"Failed to dump cache from server {client.server_address}: {resp}")
+            else:
+                print(f"Dump cache from server {client.server_address} with response: {resp}")
+        except Exception as e:
+            print(f"Failed to dump cache from server {client.server_address}: {e}")
+
 def test_read(clients : list[cl.Client], local):
     server_memory_size = gv.MEMORY_SIZE // len(SERVERS)
     for idx, client in enumerate(clients):
@@ -93,6 +104,12 @@ def test():
     print("-" * 50)
     print("Testing remote write")
     test_write(clients, False)
+    print("-" * 50)
+    print("Testing dump cache")
+    test_dump_cache(clients)
+    print("-" * 50)
+    print("Testing local read again")
+    test_read(clients, True)
     print("-" * 50)
     print("Testing remote read")
     test_read(clients, False)
