@@ -89,28 +89,29 @@ def test_acquire_and_release_lock(clients : list[cl.Client], local):
         except Exception as e:
             print(f"Failed to release lock from server {client.server_address}: {e}")
 
-def sleeping_cache():
-    client = cl.Client(SERVERS[1])
-    aux_client = cl.Client(SERVERS[0])
+def stale_cache():
+    client0 = cl.Client(SERVERS[0])
+    client1 = cl.Client(SERVERS[1])
 
-    client.connect()
-    aux_client.connect()
-
-    resp = client.write(0, "test")
+    client1.connect()
+    resp = client1.write(0, "test")
     print(f"Remote write response: {resp}")
-    time.sleep(gv.CONNECTION_TIMEOUT / 2)
 
-    resp = aux_client.write(0, "test2")
+    input("Please restart server 0 and press enter to continue")
+
+    client0.connect()
+    resp = client0.write(0, "test2")
     print(f"Local write response: {resp}")
+    client0.disconnect()
 
-    resp = client.dump_cache() # stale data
-    print(f"Dump cache response of remote client: {resp}")
+    resp = client1.dump_cache() # should see stale data
+    print(f"Remote dump cache response: {resp}")
 
-    resp = client.read(0)      # stale data is updated
-    print(f"Read response of remote client: {resp}")
+    resp = client1.read(0) # cache should be updated
+    print(f"Remote read response: {resp}")
 
-    client.disconnect()
-    aux_client.disconnect()
+    client1.disconnect()
+
 
 
 
@@ -147,7 +148,7 @@ def test():
     test_disconnect(clients)
     print("-" * 50)
     print("Testing sleeping cache")
-    sleeping_cache()
+    stale_cache()
 
 if __name__ == "__main__":
     test()

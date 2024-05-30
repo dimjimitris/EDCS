@@ -247,6 +247,17 @@ class Server:
             else:  # give up and then just communicate with the server
                 # stale data in cache, fetch from server
                 self.shared_cache.pop(memory_address)
+
+                rel_lock_val = self.serve_release_lock(
+                    self.server_address,
+                    memory_address,
+                    ac_lock_val["ltag"],
+                    True,
+                )
+
+                if rel_lock_val["status"] != gv.SUCCESS:
+                    return rel_lock_val
+
                 return self.serve_read(
                     client_address,
                     copy_holder_ip,

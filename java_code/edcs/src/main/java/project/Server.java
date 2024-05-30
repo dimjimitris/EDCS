@@ -289,6 +289,13 @@ public class Server {
             else {
                 // stale data in cache, fetch from server
                 sharedMemory.remove(memoryAddress);
+
+                JSONObject relLockVal = serveReleaseLock(serverAddress, memoryAddress, acLockVal.getLong("ltag"),true);
+
+                if (relLockVal.getInt("status") != GlobalVariables.SUCCESS) {
+                    return relLockVal;
+                }
+
                 return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
             }
         }
