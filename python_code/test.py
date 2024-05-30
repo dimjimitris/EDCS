@@ -33,7 +33,7 @@ def test_write(clients : list[cl.Client], local):
         data = "test"
         try:
             resp = client.write(mem_address, data)
-            if resp["status"] != gv.SUCCESS:
+            if resp["status"] != gv.SUCCESS or (not local and resp["istatus"] != "S"):
                 print(f"Failed to write data to server {client.server_address}: {resp}")
             else:
                 print(f"Write data to server {client.server_address} with response: {resp}")
@@ -47,7 +47,7 @@ def test_read(clients : list[cl.Client], local):
         mem_address = index * server_memory_size
         try:
             resp = client.read(mem_address)
-            if resp["status"] != gv.SUCCESS:
+            if resp["status"] != gv.SUCCESS or (not local and resp["istatus"] != "S"):
                 print(f"Failed to read data from server {client.server_address}: {resp}")
             else:
                 print(f"Read data from server {client.server_address} with response: {resp}")
