@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,12 +16,12 @@ public class Server {
     private static final int CONNECTION_TIMEOUT = GlobalVariables.CONNECTION_TIMEOUT;
     private static final int LEASE_TIMEOUT = GlobalVariables.LEASE_TIMEOUT;
 
-    private Tuple<String, Integer> serverAddress;
-    private Tuple<Integer, Integer> memoryRange;
-    private List<Tuple<String, Integer>> serverAddresses;
-    private List<Tuple<Integer, Integer>> memoryRanges;
-    private MemoryManager memoryManager;
-    private Map<Integer, MemoryItem> sharedMemory;
+    private final Tuple<String, Integer> serverAddress;
+    private final Tuple<Integer, Integer> memoryRange;
+    private final List<Tuple<String, Integer>> serverAddresses;
+    private final List<Tuple<Integer, Integer>> memoryRanges;
+    private final MemoryManager memoryManager;
+    private final Map<Integer, MemoryItem> sharedMemory;
 
     public Server(
         Tuple<String, Integer> serverAddress,
@@ -40,14 +39,12 @@ public class Server {
     }
 
     // start the server and listen for incoming connections from clients
-    public void start() throws IOException {
-        ServerSocket serverSocket = null;
-        try {
-            serverSocket = new ServerSocket();
+    public void start() {
+        try (ServerSocket serverSocket = new ServerSocket()) {
             serverSocket.setReuseAddress(true);
             serverSocket.bind(new InetSocketAddress(serverAddress.getX(), serverAddress.getY()));
 
-            logMsg("[LISTENING] Server is listening on " + serverAddress.toString());
+            logMsg("[LISTENING] Server is listening on " + serverAddress);
 
             while (true) {
                 // accept new connection
@@ -65,12 +62,8 @@ public class Server {
                 thread.start();
                 logMsg("[ACTIVE CONNECTIONS] Active connections: " + (Thread.activeCount() - 1));
             }
-        } catch (SocketException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            serverSocket.close();
         }
     }
 
@@ -82,7 +75,7 @@ public class Server {
         int port = socketAddress.getPort();
         Tuple<String, Integer> clientAddress = new Tuple<>(IP, port);
 
-        logMsg("[NEW CONNECTION] " + clientAddress.toString() + " connected.");
+        logMsg("[NEW CONNECTION] " + clientAddress + " connected.");
         boolean connected = true;
 
         // keep the connection open until the client sends a disconnect message
@@ -94,11 +87,11 @@ public class Server {
             try {
                 message = CommUtils.recMsg(clientSocket);
             } catch (EOFException e) {
-                logMsg("[ERROR RECEIVING] server " + serverAddress.toString() + ", client " + clientAddress.toString() + ", message " + message + ": " + e.getMessage());
+                logMsg("[ERROR RECEIVING] server " + serverAddress + ", client " + clientAddress + ", message " + message + ": " + e.getMessage());
                 e.printStackTrace();
                 break;
             } catch (IOException e) {
-                logMsg("[ERROR RECEIVING] server " + serverAddress.toString() + ", client " + clientAddress.toString() + ": " + e.getMessage());
+                logMsg("[ERROR RECEIVING] server " + serverAddress + ", client " + clientAddress + ": " + e.getMessage());
                 e.printStackTrace();
                 break;
             }
@@ -145,7 +138,7 @@ public class Server {
             try {
                 CommUtils.sendMsg(clientSocket, returnData);
             } catch (IOException e) {
-                logMsg("[ERROR SENDING] server " + serverAddress.toString() + ", client " + clientAddress.toString() + ": " + e.getMessage());
+                logMsg("[ERROR SENDING] server " + serverAddress + ", client " + clientAddress + ": " + e.getMessage());
                 e.printStackTrace();
                 break;
             }
@@ -201,7 +194,7 @@ public class Server {
             int copyHolderPort,
             int memoryAddress,
             boolean cascade,
-            int leastTimeout
+            int leaseTimeout
     ) {
         Tuple<String, Integer> copyHolder = new Tuple<>(copyHolderIP, copyHolderPort);
 
@@ -262,7 +255,7 @@ public class Server {
             // read the data from the shared cache and send it back to the client
             // we request a lock from the server that owns the memory address
             // we compare the wtags (last write tags) to make sure that the cached data is up-to-date
-            JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leastTimeout, true);
+            JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leaseTimeout, true);
             if (acLockVal.getInt("status") != GlobalVariables.SUCCESS) {
                 sharedMemory.remove(memoryAddress);
                 return acLockVal;
@@ -303,7 +296,7 @@ public class Server {
         if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
+            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -383,7 +376,7 @@ public class Server {
                     return response;
                 }
 
-                // cascade=False means this should be the server that owns the memory address
+                // cascade=false means this should be the server that owns the memory address
                 // and the copyholder address should be from another server and not an outside client
                 // thus, we add the copy holder to the memory address
                 if (!cascade && !copyHolder.equals(hostServer)) {
@@ -410,7 +403,7 @@ public class Server {
         if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
+            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -482,7 +475,7 @@ public class Server {
         if (!cascade) {
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
+            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -538,7 +531,7 @@ public class Server {
         if (!cascade) {
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer.toString() + "is not the server address " + serverAddress.toString());
+            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -749,8 +742,7 @@ public class Server {
         obj.put("args", args);
 
         try {
-            Socket hostServerSocket = new Socket();
-            hostServerSocket.connect(new InetSocketAddress(hostServer.getX(), hostServer.getY()), CONNECTION_TIMEOUT);
+            Socket hostServerSocket = connectToServer(hostServer, CONNECTION_TIMEOUT);
             CommUtils.sendMsg(hostServerSocket, obj);
             JSONObject response = CommUtils.recMsg(hostServerSocket);
             disconnectFromServer(hostServerSocket);
