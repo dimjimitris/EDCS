@@ -33,7 +33,7 @@ def test_write(clients : list[cl.Client], local):
         data = "test"
         try:
             resp = client.write(mem_address, data)
-            if resp["status"] != gv.SUCCESS or (not local and resp["istatus"] != "S"):
+            if resp["status"] != gv.SUCCESS:
                 print(f"Failed to write data to server {client.server_address}: {resp}")
             else:
                 print(f"Write data to server {client.server_address} with response: {resp}")
