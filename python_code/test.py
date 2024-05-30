@@ -1,5 +1,6 @@
 import client_logic as cl
 import global_variables as gv
+import time
 
 SERVERS = gv.SERVERS
 
@@ -88,6 +89,31 @@ def test_acquire_and_release_lock(clients : list[cl.Client], local):
         except Exception as e:
             print(f"Failed to release lock from server {client.server_address}: {e}")
 
+def sleeping_cache():
+    client = cl.Client(SERVERS[1])
+    aux_client = cl.Client(SERVERS[0])
+
+    client.connect()
+    aux_client.connect()
+
+    resp = client.write(0, "test")
+    print(f"Remote write response: {resp}")
+    time.sleep(gv.CONNECTION_TIMEOUT / 2)
+
+    resp = aux_client.write(0, "test2")
+    print(f"Local write response: {resp}")
+
+    resp = client.dump_cache() # stale data
+    print(f"Dump cache response of remote client: {resp}")
+
+    resp = client.read(0)      # stale data is updated
+    print(f"Read response of remote client: {resp}")
+
+    client.disconnect()
+    aux_client.disconnect()
+
+
+
 def test():
     print("-" * 50)
     print("Testing connect")
@@ -119,6 +145,9 @@ def test():
     print("-" * 50)
     print("Testing disconnect")
     test_disconnect(clients)
+    print("-" * 50)
+    print("Testing sleeping cache")
+    sleeping_cache()
 
 if __name__ == "__main__":
     test()
