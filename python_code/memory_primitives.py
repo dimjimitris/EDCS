@@ -57,8 +57,9 @@ class LockItem:
         # we release the lock after the lease_seconds
         if ret_val and lease_seconds is not None:
             def timer_callback(ltag):
-                self.release_lock(ltag)
-                print("[LOCK TIMER] lock released")
+                ret_val = self.release_lock(ltag)
+                if ret_val:
+                    print("[LOCK TIMER] lock released")
             th.Timer(lease_seconds, timer_callback, args=(ltag,)).start()
 
         return ret_val, ltag

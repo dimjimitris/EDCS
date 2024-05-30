@@ -42,8 +42,11 @@ public class LockItem {
             new Timer().schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    releaseLock(finalLtag);
-                    System.out.println("[LOCK TIMER] lock released");
+                    Tuple<Boolean, Long> resp = releaseLock(finalLtag);
+                    boolean retVal = resp.getX();
+                    if (retVal) {
+                        System.out.println("[LOCK TIMER] lock released");
+                    }
                 }
             }, leaseSeconds * 1000L);
         }
