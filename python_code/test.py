@@ -149,6 +149,8 @@ def test():
     print("-" * 50)
     print("Testing sleeping cache")
     stale_cache()
+    print("-" * 50)
+    
 
 if __name__ == "__main__":
     test()
