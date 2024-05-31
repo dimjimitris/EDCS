@@ -5,6 +5,7 @@ from jpype import java
 import global_variables as gv
 import client_logic
 import sys
+import json
 
 app = Flask(__name__)
 
@@ -47,9 +48,9 @@ class ClientManager:
     def disconnect(self, client_id):
         client = self.clients.get(client_id)
         if client:
-            client.disconnect()
+            resp = client.disconnect()
             del self.clients[client_id]
-            return f"Client {client_id} disconnected."
+            return self._treat_java_response(resp)
         return f"Client {client_id} not found."
 
     def send_command(self, client_id, command, mem_address=None, data=None, lease_tag=None):
@@ -60,38 +61,47 @@ class ClientManager:
         try:
             if command == "read":
                 result = client.read(int(mem_address))
-                return f"Read from {mem_address}: {result}"
+
+                return self._treat_java_response(result)
 
             elif command == "write":
                 data = int(data) if data.isdigit() else data
                 result = client.write(int(mem_address), data)
-                return f"Write to {mem_address}: {result}"
+
+                return self._treat_java_response(result)
 
             elif command == "lock":
                 if CLIENT_LOGIC_TYPE == 'java':
                     result = client.acquireLock(int(mem_address))
                 else:
                     result = client.acquire_lock(int(mem_address))
-                return f"Lock {mem_address}: {result}"
+                return self._treat_java_response(result)
 
             elif command == "unlock":
                 if CLIENT_LOGIC_TYPE == 'java':
                     result = client.releaseLock(int(mem_address), int(lease_tag))
                 else:
                     result = client.release_lock(int(mem_address), int(lease_tag))
-                return f"Unlock {mem_address}: {result}"
+                return self._treat_java_response(result)
 
             elif command == "dumpcache":
                 if CLIENT_LOGIC_TYPE == 'java':
                     result = client.dumpCache()
                 else:
                     result = client.dump_cache()
-                return f"Dump cache: {result}"
+                return self._treat_java_response(result)
 
             else:
                 return "Invalid command."
         except Exception as e:
             return str(e)
+        
+    def _treat_java_response(self, response):
+        if CLIENT_LOGIC_TYPE == 'java':
+            response = response.toString()
+            response = str(response)
+            return json.loads(response)
+        return response
 
 client_manager = ClientManager()
 
@@ -105,13 +115,13 @@ def connect():
     server_index = request.form.get('server_index')
     server_index = int(server_index) if server_index else None
     response = client_manager.connect(client_id, server_index)
-    return jsonify(status=response)
+    return jsonify(response=response)
 
 @app.route('/disconnect', methods=['POST'])
 def disconnect():
     client_id = request.form.get('client_id')
     response = client_manager.disconnect(client_id)
-    return jsonify(status=response)
+    return jsonify(response=response)
 
 @app.route('/command', methods=['POST'])
 def command():
