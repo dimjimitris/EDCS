@@ -18,3 +18,4 @@ SUCCESS = int(os.getenv("SUCCESS"))                                             
 ERROR = int(os.getenv("ERROR"))                                                     # 1
 INVALID_ADDRESS = int(os.getenv("INVALID_ADDRESS"))                                 # 2
 INVALID_OPERATION = int(os.getenv("INVALID_OPERATION"))                             # 3
+JAVA_JAR_FILE = os.getenv("JAVA_JAR_FILE")                                          # '../java_code/edcs/out/artifacts/server_app_jar/server-app.jar'

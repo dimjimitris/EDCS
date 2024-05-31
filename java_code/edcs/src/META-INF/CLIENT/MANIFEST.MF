@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: main.java.application.ClientApp
+Main-Class: main.edcs.application.ClientApp
 
