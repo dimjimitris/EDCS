@@ -41,9 +41,12 @@ class ClientManager:
             client = ClientLogic(server_address[0], server_address[1])
         else:
             client = client_logic.Client(server_address)
-        client.connect()
-        self.clients[client_id] = client
-        return f"Client {client_id} connected to server {server_address}"
+        try:
+            client.connect()
+            self.clients[client_id] = client
+            return f"Client {client_id} connected to server {server_address}"
+        except Exception as e:
+            return f"Error connecting to server {server_address}: {str(e)}"
 
     def disconnect(self, client_id):
         client = self.clients.get(client_id)
