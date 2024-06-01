@@ -1,208 +1,185 @@
-import requests
-
+import client_wrapper as cw
 import global_variables as gv
 
+import sys
+import jpype
+
+# Default client logic type
+CLIENT_LOGIC_TYPE = 'python'
+
 SERVERS = gv.SERVERS
-CLIENT_API = gv.CLIENT_API
 
 def test_connect():
     clients = []
-    for server_index in range(len(SERVERS)):
-        client = server_index
+    for server in SERVERS:
+        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, server)
         try :
-            resp = requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client, 'server_index': server_index})
+            client.connect()
             clients.append(client)
-            print(resp.json()["response"])
         except Exception as e:
-            print(f"Failed to connect to server {SERVERS[server_index]}: {e}")
+            print(f"Failed to connect to server {server}: {e}")
     return clients
 
-def test_disconnect(clients : list[int]):
-    for client_id, server_index in enumerate(clients):
+def test_disconnect(clients : list[cw.ClientWrapper]):
+    for client in clients:
         try:
-            resp = requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client_id})
-            resp = resp.json()["response"]
+            resp = client.disconnect()
             if resp["status"] != gv.SUCCESS:
-                print(f"Failed to disconnect from server {SERVERS[server_index]}: {resp}")
+                print(f"Failed to disconnect from server {client.server_address}: {resp}")
             else:
-                print(f"Disconnected from server {SERVERS[server_index]} with response: {resp}")
+                print(f"Disconnected from server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to disconnect from server {SERVERS[server_index]}: {e}")
+            print(f"Failed to disconnect from server {client.server_address}: {e}")
 
-def test_write(clients : list[int], local):
+def test_write(clients : list[cw.ClientWrapper], local):
     server_memory_size = gv.MEMORY_SIZE // len(SERVERS)
-    for client_id, server_index in enumerate(clients):
-        index = client_id if local else (client_id + 1) % len(SERVERS)
+    for idx, client in enumerate(clients):
+        index = idx if local else (idx + 1) % len(SERVERS)
         mem_address = index * server_memory_size
         data = "test"
         try:
-            resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client_id, 'command': 'write', 'mem_address': mem_address, 'data': data})
-            resp = resp.json()["response"]
+            resp = client.write(mem_address, data)
             if resp["status"] != gv.SUCCESS:
-                print(f"Failed to write data to server {SERVERS[server_index]}: {resp}")
+                print(f"Failed to write data to server {client.server_address}: {resp}")
             else:
-                print(f"Write data to server {SERVERS[server_index]} with response: {resp}")
+                print(f"Write data to server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to write data to server {SERVERS[server_index]}: {e}")
+            print(f"Failed to write data to server {client.server_address}: {e}")
 
-def test_dump_cache(clients : list[int]):
-    for client_id, server_index in enumerate(clients):
+def test_dump_cache(clients : list[cw.ClientWrapper]):
+    for client in clients:
         try:
-            resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client_id, 'command': 'dumpcache'})
-            resp = resp.json()["response"]
+            resp = client.dump_cache()
             if resp["status"] != gv.SUCCESS:
-                print(f"Failed to dump cache from server {SERVERS[server_index]}: {resp}")
+                print(f"Failed to dump cache from server {client.server_address}: {resp}")
             else:
-                print(f"Dump cache from server {SERVERS[server_index]} with response: {resp}")
+                print(f"Dump cache from server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to dump cache from server {SERVERS[server_index]}: {e}")
+            print(f"Failed to dump cache from server {client.server_address}: {e}")
 
-def test_read(clients : list[int], local):
+def test_read(clients : list[cw.ClientWrapper], local):
     server_memory_size = gv.MEMORY_SIZE // len(SERVERS)
-    for client_id, server_index in enumerate(clients):
-        index = client_id if local else (client_id + 1) % len(SERVERS)
+    for idx, client in enumerate(clients):
+        index = idx if local else (idx + 1) % len(SERVERS)
         mem_address = index * server_memory_size
         try:
-            resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client_id, 'command': 'read', 'mem_address': mem_address})
-            resp = resp.json()["response"]
+            resp = client.read(mem_address)
             if resp["status"] != gv.SUCCESS or (not local and resp["istatus"] != "S"):
-                print(f"Failed to read data from server {SERVERS[server_index]}: {resp}")
+                print(f"Failed to read data from server {client.server_address}: {resp}")
             else:
-                print(f"Read data from server {SERVERS[server_index]} with response: {resp}")
+                print(f"Read data from server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to read data from server {SERVERS[server_index]}: {e}")
+            print(f"Failed to read data from server {client.server_address}: {e}")
 
-def test_acquire_and_release_lock(clients : list[int], local):
+def test_acquire_and_release_lock(clients : list[cw.ClientWrapper], local):
     server_memory_size = gv.MEMORY_SIZE // len(SERVERS)
-    for client_id, server_index in enumerate(clients):
-        index = client_id if local else (client_id + 1) % len(SERVERS)
+    for idx, client in enumerate(clients):
+        index = idx if local else (idx + 1) % len(SERVERS)
         mem_address = index * server_memory_size
         try:
-            resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client_id, 'command': 'lock', 'mem_address': mem_address})
-            resp = resp.json()["response"]
+            resp = client.acquire_lock(mem_address)
             if resp["status"] != gv.SUCCESS:
-                print(f"Failed to acquire lock from server {SERVERS[server_index]}: {resp}")
+                print(f"Failed to acquire lock from server {client.server_address}: {resp}")
             else:
-                print(f"Acquire lock from server {SERVERS[server_index]} with response: {resp}")
+                print(f"Acquire lock from server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to acquire lock from server {SERVERS[server_index]}: {e}")
+            print(f"Failed to acquire lock from server {client.server_address}: {e}")
         try:
             if resp is not None and resp["status"] == gv.SUCCESS:
-                resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client_id, 'command': 'unlock', 'mem_address': mem_address, 'lease_tag': resp["ltag"]})
-                resp = resp.json()["response"]
+                resp = client.release_lock(mem_address, resp["ltag"])
                 if resp["status"] != gv.SUCCESS:
-                    print(f"Failed to release lock from server {SERVERS[server_index]}: {resp}")
+                    print(f"Failed to release lock from server {client.server_address}: {resp}")
                 else:
-                    print(f"Release lock from server {SERVERS[server_index]} with response: {resp}")
+                    print(f"Release lock from server {client.server_address} with response: {resp}")
         except Exception as e:
-            print(f"Failed to release lock from server {SERVERS[server_index]}: {e}")
+            print(f"Failed to release lock from server {client.server_address}: {e}")
 
 def stale_cache():
-    client0 = 0
-    client1 = 1
+    client0 = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[0])
+    client1 = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[1])
 
-    requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client1, 'server_index': client1})
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client1, 'command': 'write', 'mem_address': 0, 'data': "test"})
-    resp = resp.json()["response"]
+    client1.connect()
+    resp = client1.write(0, "test")
     print(f"Remote write response: {resp}")
 
     input("Please restart server 0 and press enter to continue")
 
-    requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client0, 'server_index': client0})
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client0, 'command': 'write', 'mem_address': 0, 'data': "test2"})
-    resp = resp.json()["response"]
+    client0.connect()
+    resp = client0.write(0, "test2")
     print(f"Local write response: {resp}")
-    requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client0})
+    client0.disconnect()
 
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client1, 'command': 'dumpcache'})
-    resp = resp.json()["response"]
-    # should see stale data
+    resp = client1.dump_cache() # should see stale data
     print(f"Remote dump cache response: {resp}")
 
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client1, 'command': 'read', 'mem_address': 0})
-    resp = resp.json()["response"]
-    # should see updated data
+    resp = client1.read(0) # cache should be updated
     print(f"Remote read response: {resp}")
 
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client1, 'command': 'dumpcache'})
-    resp = resp.json()["response"]
-    # should see updated data
+    resp = client1.dump_cache() # should see updated data
     print(f"Remote dump cache response: {resp}")
 
-    requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client1})
+    client1.disconnect()
 
 def corrupted_copy_holder_chain(index):
     if index not in range(1, len(SERVERS)):
         print("Invalid server index, give value 1 or 2")
         return
 
-    clients : list[int] = []
-    for server_index in range(len(SERVERS)):
-        client = server_index
-        requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client, 'server_index': server_index})
+    clients : list[cw.ClientWrapper] = []
+    for server in SERVERS:
+        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, server)
+        client.connect()
         clients.append(client)
 
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[0],  'command': 'write', 'mem_address': 0, 'data': "test"})
+    resp = clients[0].write(0, "test")
     for client in clients:
-        requests.post(f'http://{CLIENT_API}/command', data={'client_id': client,  'command': 'read', 'mem_address': 0})
+        client.read(0)
 
     if index == 1:
         input("Please turn off server 1 and press enter to continue")
     else:
         input("Please turn off server 2 and press enter to continue")
 
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[0],  'command': 'write', 'mem_address': 0, 'data': "test2"})
-    resp = resp.json()["response"]
+    resp = clients[0].write(0, "test2")
 
     if index == 1: # write will not have been propagated to server 2 and server 0 will have memory address 0 as "E" (Exclusive)
-        resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[2], 'command': 'dumpcache',})
-        resp = resp.json()["response"]
+        resp = clients[2].dump_cache()
         print(f"Server 2 cache: {resp}")
 
-        resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[0],  'command': 'read', 'mem_address': 0})
-        resp = resp.json()["response"]
+        resp = clients[0].read(0)
         print(f"Server 0 read response: {resp}")
 
     else: # write will have been propagated to server 1 and server 0 will have memory address 0 as "S" (Shared)
-        resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[1], 'command': 'dumpcache', })
-        resp = resp.json()["response"]
+        resp = clients[1].dump_cache()
         print(f"Server 1 cache: {resp}")
 
-        resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': clients[0],  'command': 'read', 'mem_address': 0})
-        resp = resp.json()["response"]
+        resp = clients[0].read(0)
         print(f"Server 0 read response: {resp}")
 
     for client in clients:
         try:
-            requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client})
+            client.disconnect()
         except Exception as e:
-            print(f"Failed to disconnect from server {SERVERS[client]}: {e}")
+            print(f"Failed to disconnect from server {client.server_address}: {e}")
 
 
 def test_write_cache():
-    client = 1
-    requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client, 'server_index': client})
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client, 'command': 'write', 'mem_address': 0, 'data': "test"})
-    try:
-        resp = resp.json()["response"]
-    except:
-        print(ascii(resp))
+    client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[1])
+    client.connect()
+    resp = client.write(0, "test")
     print(f"Write response: {resp}")
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client, 'command': 'dumpcache'})
-    resp = resp.json()["response"]
+    resp = client.dump_cache()
     print(f"Dump cache response: {resp}")
-    requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client})
+    client.disconnect()
 
 def test_read_cache():
-    client = 1
-    requests.post(f'http://{CLIENT_API}/connect', data={'client_id': client, 'server_index': client})
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client, 'command': 'read', 'mem_address': 0})
-    resp = resp.json()["response"]
+    client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[1])
+    client.connect()
+    resp = client.read(0)
     print(f"Read response: {resp}")
-    resp = requests.post(f'http://{CLIENT_API}/command', data={'client_id': client, 'command': 'dumpcache'})
-    resp = resp.json()["response"]
+    resp = client.dump_cache()
     print(f"Dump cache response: {resp}")
-    requests.post(f'http://{CLIENT_API}/disconnect', data={'client_id': client})
+    client.disconnect()
 
 def test_basic():
     print("-" * 50)
@@ -248,6 +225,22 @@ def test_copy_holder_chain(index):
     print("-" * 50)
 
 if __name__ == "__main__":
+    # Check if command-line argument -type is provided and set CLIENT_LOGIC_TYPE accordingly
+    if len(sys.argv) > 1 and sys.argv[1] == "-type":
+        if len(sys.argv) > 2:
+            if sys.argv[2] in ['java', 'python']:
+                CLIENT_LOGIC_TYPE = sys.argv[2]
+            else:
+                print("Invalid client logic type. Please choose 'java' or 'python'.")
+                sys.exit(1)
+        else:
+            print("Client logic type argument missing. Please specify 'java' or 'python'.")
+            sys.exit(1)
+
+    # Start the JVM if Java client logic is chosen
+    if CLIENT_LOGIC_TYPE == 'java':
+        jpype.startJVM(classpath=[gv.JAVA_JAR_FILE])
+    
     print("Testing basic functionality")
     input("Put all the server up and running and press enter to continue")
     test_basic()
@@ -267,3 +260,6 @@ if __name__ == "__main__":
     input("Put all the server up and running and press enter to continue")
     test_copy_holder_chain(2)
 
+    # Stop the JVM if Java client logic is chosen
+    if CLIENT_LOGIC_TYPE == 'java':
+        jpype.shutdownJVM()
