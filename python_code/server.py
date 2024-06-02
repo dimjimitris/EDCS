@@ -177,7 +177,7 @@ class Server:
             ltag = -1
             try:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
-                if not ret_val or ltag == -1 or wtag == -1:
+                if not ret_val:
                     return {"status": gv.ERROR, "message": "Failed to acquire lock"}
                 # cascade=False means this should be the server that owns the memory address
                 # and the copyholder address should be from another server and not an outside client
@@ -324,7 +324,7 @@ class Server:
             ltag = -1
             try:
                 ret_val, ltag, wtag = self.memory_manager.acquire_lock(memory_address)
-                if not ret_val or ltag == -1 or wtag == -1:
+                if not ret_val:
                     return {"status": gv.ERROR, "message": "Failed to acquire lock"}
                 # cascade=False means this should be the server that owns the memory address
                 # and the copyholder address should be from another server and not an outside client
@@ -612,7 +612,7 @@ class Server:
         wtag: int,
     ):
         ret_val = self._get_from_remote(
-            None,
+            self.server_address,
             memory_address,
             next_address,
             "serve_update_cache",

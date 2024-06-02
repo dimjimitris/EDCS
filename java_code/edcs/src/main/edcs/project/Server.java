@@ -221,7 +221,7 @@ public class Server {
                 ltag = releaseValue.getY();
                 long wtag = releaseValue.getZ();
 
-                if (!retVal || ltag == -1 || wtag == -1) {
+                if (!retVal) {
                     JSONObject response = new JSONObject();
                     response.put("status", GlobalVariables.ERROR);
                     response.put("message", "Failed to acquire lock");
@@ -304,7 +304,7 @@ public class Server {
         if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
+            response.put("message", "Read host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -377,7 +377,7 @@ public class Server {
                 ltag = releaseValue.getY();
                 long wtag = releaseValue.getZ();
 
-                if (!retVal || ltag == -1 || wtag == -1) {
+                if (!retVal) {
                     JSONObject response = new JSONObject();
                     response.put("status", GlobalVariables.ERROR);
                     response.put("message", "Failed to acquire lock");
@@ -411,7 +411,7 @@ public class Server {
         if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.ERROR);
-            response.put("message", "Lock host address " + hostServer + "is not the server address " + serverAddress);
+            response.put("message", "Write host address " + hostServer + "is not the server address " + serverAddress);
             return response;
         }
 
@@ -607,7 +607,7 @@ public class Server {
 
             JSONObject cacheItem = new JSONObject();
             cacheItem.put("address", k);
-            cacheItem.put("data", mi.getData());
+            cacheItem.put("data", mi.getData() == null ? JSONObject.NULL : mi.getData());
             cacheItem.put("istatus", mi.getStatus());
             cacheItem.put("wtag", mi.getWtag());
 
@@ -712,7 +712,7 @@ public class Server {
         args.put(wtag);
 
         JSONObject response = getFromRemote(
-                null,
+                serverAddress,
                 memoryAddress,
                 nextAddress,
                 "serve_update_cache",
