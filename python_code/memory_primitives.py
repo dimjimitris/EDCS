@@ -35,7 +35,7 @@ class LockItem:
         self.condition = th.Condition() # condition + lock that protect the (item) lock
         self.ltag = time_utils.get_time()  # last lock tag
 
-    def acquire_lock(self, lease_seconds=None) -> tuple[bool, int]:
+    def acquire_lock(self) -> tuple[bool, int]:
         """
         Description: This function acquires the lock for the item.
 
@@ -51,16 +51,6 @@ class LockItem:
             ret_val = True
             self.ltag += 1
             ltag = self.ltag
-
-        # the lease seconds applies if the lock is acquired by a remote client
-        # this client could potentially fail and keep the lock forever, thus
-        # we release the lock after the lease_seconds
-        if ret_val and lease_seconds is not None:
-            def timer_callback(ltag):
-                val, _ = self.release_lock(ltag)
-                if val:
-                    print("[LOCK TIMER] lock released")
-            th.Timer(lease_seconds, timer_callback, args=(ltag,)).start()
 
         return ret_val, ltag
 

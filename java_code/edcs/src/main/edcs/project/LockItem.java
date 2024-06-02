@@ -19,7 +19,7 @@ public class LockItem {
     // this function acquires the lock for the item.
     // returns a Tuple which indicates if acquiring the lock was successful
     // and what the last lock tag is.
-    public Tuple<Boolean, Long> acquireLock(Long leaseSeconds) throws InterruptedException {
+    public Tuple<Boolean, Long> acquireLock() throws InterruptedException {
         boolean retVal = false;
         long ltag = -1;
         // we want to acquire the lock and increment the ltag atomically
@@ -34,26 +34,6 @@ public class LockItem {
             ltag = this.ltag;
         }
 
-        // the lease seconds applies if the lock is acquired by a remote client
-        // this client could potentially fail and keep the lock forever, thus
-        // we release the lock after the lease_seconds
-        if (retVal && leaseSeconds != null) {
-            long finalLtag = ltag;
-            Thread thread = new Thread(() -> {
-                try {
-                    Thread.sleep(leaseSeconds * 1000L);
-                } catch (InterruptedException e) {
-                    System.out.println("[LOCK TIMER] Interrupted");
-                } finally {
-                    Tuple<Boolean, Long> resp = releaseLock(finalLtag);
-                    boolean success = resp.getX();
-                    if (success) {
-                        System.out.println("[LOCK TIMER] lock released");
-                    }
-                }
-            });
-            thread.start();
-        }
         return new Tuple<>(retVal, ltag);
     }
 

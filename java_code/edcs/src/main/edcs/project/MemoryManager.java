@@ -1,22 +1,20 @@
 package main.edcs.project;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MemoryManager {
     private Map<Integer, MemoryItem> memory;
     private Map<Integer, LockItem> locks;
     private Map<Integer, List<Tuple<String, Integer>>> copyHolders;
     private Tuple<Integer, Integer> memoryRange;
+    private Timer lockTimer;
 
     public MemoryManager(Tuple<Integer, Integer> memoryRange) {
         this.memory = new HashMap<>();
         this.locks = new HashMap<>();
         this.copyHolders = new HashMap<>();
         this.memoryRange = memoryRange;
+        this.lockTimer = new Timer();
 
         for(int i = this.memoryRange.getX(); i < this.memoryRange.getY(); i++) {
         	this.memory.put(i, new MemoryItem(null, "E"));
@@ -51,9 +49,30 @@ public class MemoryManager {
             return new Tuple2<>(false, (long) -1, (long) -1);
         }
         
-        Tuple<Boolean, Long> lockResult = lockItem.acquireLock(leaseSeconds);
-        
-        return new Tuple2<>(lockResult.getX(), lockResult.getY(), this.memory.get(address).getWtag());
+        Tuple<Boolean, Long> lockResult = lockItem.acquireLock();
+        boolean retVal = lockResult.getX();
+        long ltag = lockResult.getY();
+
+        // the lease seconds applies if the lock is acquired by a remote client
+        // this client could potentially fail and keep the lock forever, thus
+        // we release the lock after the lease_seconds
+        if (retVal && leaseSeconds != null) {
+            // class Timer is thread safe
+            lockTimer.schedule(
+                    new TimerTask() {
+                        @Override
+                        public void run() {
+                            Tuple<Boolean, Long> resp = lockItem.releaseLock(ltag);
+                            boolean success = resp.getX();
+                            if (success) {
+                                System.out.println("[LOCK TIMER] lock released for memory address: " + address);
+                            }
+                        }
+                    }, leaseSeconds * 1000L
+            );
+        }
+
+        return new Tuple2<>(retVal, ltag, this.memory.get(address).getWtag());
     }
 
     // return:

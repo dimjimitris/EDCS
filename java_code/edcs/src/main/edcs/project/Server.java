@@ -56,7 +56,7 @@ public class Server {
                     handleClient(clientSocket);
                 });
                 thread.start();
-                logMsg("[ACTIVE CONNECTIONS] Active connections: " + (Thread.activeCount() - 1));
+                logMsg("[ACTIVE CONNECTIONS] Active connections: " + (Thread.activeCount() - 2));
             }
         } catch (IOException e) {
             e.printStackTrace();

@@ -1,4 +1,7 @@
 import memory_primitives as mp
+import sched
+import time
+import threading as th
 
 class MemoryManager:
     def __init__(
@@ -44,7 +47,19 @@ class MemoryManager:
         """
         if address not in self.locks:
             return False, -1, -1
-        ret_val, ltag = self.locks[address].acquire_lock(lease_seconds)
+        ret_val, ltag = self.locks[address].acquire_lock()
+
+        # the lease seconds applies if the lock is acquired by a remote client
+        # this client could potentially fail and keep the lock forever, thus
+        # we release the lock after the lease_seconds
+        if ret_val and lease_seconds is not None:
+            # ensure thread safety
+            def timer_callback(_ltag, _address):
+                val, _ = self.locks[_address].release_lock(_ltag)
+                if val:
+                    print(f"[LOCK TIMER] lock released for address {_address}")
+            th.Timer(lease_seconds, timer_callback, args=(ltag, address)).start()
+
         return ret_val, ltag, self.memory[address].wtag
     
     def release_lock(self, address: int, lease_ltag) -> tuple[bool, int, int]:
