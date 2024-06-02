@@ -248,7 +248,7 @@ public class Server {
             response.put("istatus", data.getStatus());
             response.put("wtag", data.getWtag());
             response.put("ltag", ltag);
-            logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         }
         if (sharedMemory.containsKey(memoryAddress)) {
@@ -284,7 +284,7 @@ public class Server {
                 response.put("istatus", data.getStatus());
                 response.put("wtag", data.getWtag());
                 response.put("ltag", acLockVal.getLong("ltag"));
-                logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+                logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
                 return response;
             }
             else {
@@ -404,7 +404,7 @@ public class Server {
             JSONObject response = new JSONObject();
             response.put("status", GlobalVariables.SUCCESS);
             response.put("message", "write successful");
-            logMsg("[WRITE RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[WRITE RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         }
 
@@ -476,7 +476,7 @@ public class Server {
                 response.put("status", GlobalVariables.ERROR);
                 response.put("message", "Failed to acquire lock with error: " + e.getMessage());
             }
-            logMsg("[ACQUIRE LOCK RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[ACQUIRE LOCK RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         }
 
@@ -532,7 +532,7 @@ public class Server {
             } else {
                 response.put("message", "lock was already released");
             }
-            logMsg("[RELEASE LOCK RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[RELEASE LOCK RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         }
 
@@ -582,7 +582,7 @@ public class Server {
             Tuple<String, Integer> nextAddress = new Tuple<>(nextAddressAux.getString(0), nextAddressAux.getInt(1));
             addressChain.remove(0);
             JSONObject response = updateNextCopy(addressChain, nextAddress, memoryAddress, data, status, wtag);
-            logMsg("[UPDATE CACHE RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[UPDATE CACHE RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         }
 
@@ -599,7 +599,7 @@ public class Server {
     public JSONObject serveDumpCache(
             Tuple<String, Integer> clientAddress
     ) {
-        logMsg("[DUMP CACHE REQUEST] server " + serverAddress + ", client " + clientAddress.toString());
+        logMsg("[DUMP CACHE REQUEST] server " + serverAddress + ", client " + clientAddress);
         JSONArray cacheItems = new JSONArray();
         for(Map.Entry<Integer, MemoryItem> e : sharedMemory.entrySet()) {
             int k = e.getKey();
@@ -754,7 +754,7 @@ public class Server {
             hostServerSocket = connectToServer(hostServer, CONNECTION_TIMEOUT);
             CommUtils.sendMsg(hostServerSocket, obj);
             JSONObject response = CommUtils.recMsg(hostServerSocket);
-            logMsg("[" + logType + " RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
+            logMsg("[" + logType + " RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
             return response;
         } catch (IOException e) {
             logMsg("[" + logType + " ERROR] server" + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ": " + e);

@@ -195,7 +195,7 @@ class Server:
                 "ltag": ltag,
             }
             log_msg(
-                f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
+                f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
             )
             return response
 
@@ -236,7 +236,7 @@ class Server:
                     )
 
                 log_msg(
-                    f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {return_value}"
+                    f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
                 )
                 return {
                     "status": gv.SUCCESS,
@@ -342,7 +342,7 @@ class Server:
                 "message": "write successful",
             }
             log_msg(
-                f"[WRITE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
+                f"[WRITE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
             )
             return response
 
@@ -402,7 +402,7 @@ class Server:
                 else:
                     response = {"status": gv.ERROR, "message": "lock not acquired"}
                 log_msg(
-                    f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
+                    f"[ACQUIRE LOCK RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}"
                 )
             except Exception as e:
                 response = {
@@ -464,7 +464,7 @@ class Server:
                     "wtag": wtag,
                 }
             log_msg(
-                f"[RELEASE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
+                f"[RELEASE LOCK RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
             )
             return response
 
@@ -650,7 +650,7 @@ class Server:
             cu.send_msg(host_server_socket, {"type": type, "args": args})
             response = cu.rec_msg(host_server_socket)
             log_msg(
-                f"[{log_type} RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
+                f"[{log_type} RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}"
             )
         except Exception as e:
             log_msg(
