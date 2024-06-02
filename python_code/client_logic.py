@@ -24,13 +24,13 @@ class Client:
         self.s.connect(self.server_address)
 
     def disconnect(self):
+        data = None
         try:
             cu.send_msg(self.s, {"type": "disconnect"})
             data = cu.rec_msg(self.s)
-            return data
         finally:
             self.s.close()
-        return None
+            return data
 
     def write(self, mem_address, data):
         """
