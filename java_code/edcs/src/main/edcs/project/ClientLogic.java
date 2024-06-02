@@ -33,11 +33,15 @@ public class ClientLogic {
     }
 
     public JSONObject disconnect() throws IOException {
-        JSONObject msg = new JSONObject();
-        msg.put("type", "disconnect");
-        CommUtils.sendMsg(socket, msg);
-        JSONObject resp = CommUtils.recMsg(socket);
-        socket.close();
+        JSONObject resp = null;
+        try {
+            JSONObject msg = new JSONObject();
+            msg.put("type", "disconnect");
+            CommUtils.sendMsg(socket, msg);
+            resp = CommUtils.recMsg(socket);
+        } finally {
+            socket.close();
+        }
         return resp;
     }
 

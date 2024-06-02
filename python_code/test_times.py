@@ -159,10 +159,8 @@ if __name__ == "__main__":
     print("Testing basic functionality")
     input("Put all the server up and running and press enter to continue")
     clients = [
-        #cw.ClientWrapper(CLIENT_LOGIC_TYPE, random.choice(gv.SERVERS))
-        #for _ in range(2)
-        cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[0]),
-        cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[1])
+        cw.ClientWrapper(CLIENT_LOGIC_TYPE, random.choice(gv.SERVERS))
+        for _ in range(100)
     ]
     try:
         for client in clients:
@@ -180,25 +178,18 @@ if __name__ == "__main__":
         print("-" * 50)
         print("Testing serial reads to the same memory address")
         test_serial_reads(clients, mem_address, count)
-        input("Press enter to continue")
         print("Testing serial writes to the same memory address")
         test_serial_writes(clients, mem_address, small_data, count)
-        input("Press enter to continue")
         print("Testing concurrent reads to the same memory address")
         test_concurrent_reads(clients, mem_address, count)
-        input("Press enter to continue")
         print("Testing concurrent writes to the same memory address")
         test_concurrent_writes(clients, mem_address, small_data, count)
-        input("Press enter to continue")
         print("Testing serial reads to random memory addresses")
         test_random_reads(clients, count)
-        input("Press enter to continue")
         print("Testing serial writes to random memory addresses")
         test_random_writes(clients, small_data, count)
-        input("Press enter to continue")
         print("Testing random concurrent reads")
         test_random_concurrent_reads(clients, count)
-        input("Press enter to continue")
         print("Testing random concurrent writes")
         test_random_concurrent_writes(clients, small_data, count)
 
