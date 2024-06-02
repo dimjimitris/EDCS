@@ -25,6 +25,7 @@ public class ClientLogic {
 
     public void connect() throws IOException {
         socket = new Socket();
+        socket.setReuseAddress(true);
         socket.connect(
                 new InetSocketAddress(serverAddress.getX(), serverAddress.getY()),
                 GlobalVariables.CONNECTION_TIMEOUT * 3000

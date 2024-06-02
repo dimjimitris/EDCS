@@ -642,25 +642,27 @@ class Server:
         Wrapper function to connect to a remote server and send a message.
         It is used when our requests want to retrieve something from another server.
         """
+        response = None
         try:
             host_server_socket = self._connect_to_server(
                 host_server, CONNECTION_TIMEOUT
             )
             cu.send_msg(host_server_socket, {"type": type, "args": args})
             response = cu.rec_msg(host_server_socket)
-            self._disconnect_from_server(host_server_socket)
             log_msg(
                 f"[{log_type} RESPONSE] server {self.server_address}, client {client_address}, memory address {memory_address}, response {response}"
             )
-            return response
         except Exception as e:
             log_msg(
                 f"[{log_type} ERROR] server {self.server_address}, client {client_address}, memory address {memory_address}: {e}"
             )
-            return {
+            response = {
                 "status": gv.ERROR,
                 "message": f"Failed to connect to the host with error: {e}",
             }
+        finally:
+            self._disconnect_from_server(host_server_socket)
+            return response
 
     def _get_server_index(self, memory_address: int) -> int:
         """
@@ -700,6 +702,7 @@ class Server:
         - server_socket: the socket connected to the server
         """
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.settimeout(timeout)  # timeout only used for connection
         server_socket.connect(server_address)
         # server_socket.settimeout(None) # remove timeout after connection
@@ -717,7 +720,7 @@ class Server:
             cu.send_msg(server_socket, {"type": "disconnect"})
             cu.rec_msg(server_socket)
         finally:
-            # server_socket.shutdown(socket.SHUT_RDWR)
+            #server_socket.shutdown(socket.SHUT_RDWR)
             server_socket.close()
 
 

@@ -17,10 +17,18 @@ public class Tuple<X, Y> {
         return this.y;
     }
 
-    public boolean equals(Tuple<X, Y> tuple) {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (!(o instanceof Tuple)) return false;
+
+        Tuple<?, ?> tuple = (Tuple<?, ?>) o;
+
         return this.x.equals(tuple.x) && this.y.equals(tuple.y);
     }
 
+    @Override
     public String toString() {
         return "(" + this.x + ", " + this.y + ")";
     }

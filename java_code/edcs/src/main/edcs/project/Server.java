@@ -53,23 +53,20 @@ public class Server {
                 // at the same time
                 Socket clientSocket = serverSocket.accept();
                 Thread thread = new Thread(() -> {
-                    try {
-                        handleClient(clientSocket);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    handleClient(clientSocket);
                 });
                 thread.start();
                 logMsg("[ACTIVE CONNECTIONS] Active connections: " + (Thread.activeCount() - 1));
             }
         } catch (IOException e) {
             e.printStackTrace();
+            logMsg("[LISTENING] Server failed to listen on " + serverAddress);
         }
     }
 
     // handle a client connection by receiving messages from the client and
     // sending back the appropriate responses
-    private void handleClient(Socket clientSocket) throws IOException {
+    private void handleClient(Socket clientSocket) {
         InetSocketAddress socketAddress = (InetSocketAddress) clientSocket.getRemoteSocketAddress();
         String IP = socketAddress.getAddress().getHostAddress();
         int port = socketAddress.getPort();
@@ -95,7 +92,7 @@ public class Server {
                 e.printStackTrace();
                 break;
             }
-
+            
             if (message == null) {
                 continue;
             }
@@ -144,8 +141,12 @@ public class Server {
             }
         }
         logMsg("[DISCONNECTED] server " + serverAddress + ", client " + clientAddress + ".");
-        clientSocket.close();
-
+        try {
+            clientSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            logMsg("[ERROR CLOSING] server " + serverAddress + ", client " + clientAddress + ": " + e.getMessage());
+        }
     }
 
     public JSONObject serveRead(
@@ -748,11 +749,11 @@ public class Server {
         obj.put("type", type);
         obj.put("args", args);
 
+        Socket hostServerSocket = null;
         try {
-            Socket hostServerSocket = connectToServer(hostServer, CONNECTION_TIMEOUT);
+            hostServerSocket = connectToServer(hostServer, CONNECTION_TIMEOUT);
             CommUtils.sendMsg(hostServerSocket, obj);
             JSONObject response = CommUtils.recMsg(hostServerSocket);
-            disconnectFromServer(hostServerSocket);
             logMsg("[" + logType + " RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ", response " + response);
             return response;
         } catch (IOException e) {
@@ -761,6 +762,14 @@ public class Server {
             error.put("status", GlobalVariables.ERROR);
             error.put("message", "Failed to connect to the host with error: " + e.getMessage());
             return error;
+        } finally {
+            try {
+                if (hostServerSocket != null) {
+                    disconnectFromServer(hostServerSocket);
+                }
+            } catch (IOException e) {
+                logMsg("[ERROR DISCONNECTING INTERNAL] " + e.getMessage());
+            }
         }
     }
 
@@ -786,6 +795,7 @@ public class Server {
         timeout = timeout < 0 ? 0 : timeout * 1000;
 
         Socket socket = new Socket();
+        socket.setReuseAddress(true);
         socket.connect(new InetSocketAddress(address.getX(), address.getY()), timeout);
         // socket.setSoTimeout(0);
         return socket;
@@ -806,11 +816,11 @@ public class Server {
         }
     }
 
-    private void logMsg(String msg) {
+    private static void logMsg(String msg) {
         logMsg(msg, false);
     }
 
-    private void logMsg(String msg, boolean datetime) {
+    private static void logMsg(String msg, boolean datetime) {
         if (datetime) {
             msg = TimeUtils.getDatetime().toString() + msg;
         }
