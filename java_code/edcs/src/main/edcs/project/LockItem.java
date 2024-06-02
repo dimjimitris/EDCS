@@ -39,16 +39,20 @@ public class LockItem {
         // we release the lock after the lease_seconds
         if (retVal && leaseSeconds != null) {
             long finalLtag = ltag;
-            new Timer().schedule(new TimerTask() {
-                @Override
-                public void run() {
+            Thread thread = new Thread(() -> {
+                try {
+                    Thread.sleep(leaseSeconds * 1000L);
+                } catch (InterruptedException e) {
+                    System.out.println("[LOCK TIMER] Interrupted");
+                } finally {
                     Tuple<Boolean, Long> resp = releaseLock(finalLtag);
-                    boolean retVal = resp.getX();
-                    if (retVal) {
+                    boolean success = resp.getX();
+                    if (success) {
                         System.out.println("[LOCK TIMER] lock released");
                     }
                 }
-            }, leaseSeconds * 1000L);
+            });
+            thread.start();
         }
         return new Tuple<>(retVal, ltag);
     }
