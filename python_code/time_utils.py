@@ -6,7 +6,9 @@ def get_time():
     """
     Description: Get the current time in nanoseconds
     """
-    return time.time_ns()
+    res = time.time_ns()
+    # java long is 64 bits, so we truncate the result to 64 bits
+    return res & 0xFFFFFFFFFFFFFFFF
 
 
 def get_datetime():
