@@ -162,10 +162,9 @@ if __name__ == "__main__":
         cw.ClientWrapper(CLIENT_LOGIC_TYPE, random.choice(gv.SERVERS))
         for _ in range(REPS)
     ]
-    try:
-        for client in clients:
-            client.connect()
-        
+    for client in clients:
+        client.connect()
+    try:        
         # Test serial and concurrent reads and writes to the same memory address
         mem_address = 0
         count = 1

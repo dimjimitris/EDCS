@@ -4,11 +4,14 @@ import threading as th
 import global_variables as gv
 import memory_manager as mm
 import memory_primitives as mp
+import cache
 import comm_utils as cu
 import time_utils as tu
 
 CONNECTION_TIMEOUT = gv.CONNECTION_TIMEOUT
 LEASE_TIMEOUT = gv.LEASE_TIMEOUT
+CACHE_SIZE = gv.CACHE_SIZE
+
 
 # simple logging function which adds (or not) a timestamp at the
 # start of the message
@@ -30,7 +33,7 @@ class Server:
         self.memory_ranges = memory_ranges
 
         self.memory_manager = mm.MemoryManager(memory_range=self.memory_range)
-        self.shared_cache: dict[int, mp.MemoryItem] = {}
+        self.shared_cache = cache.Cache(cache_size=CACHE_SIZE)
 
     def start(self):
         """
@@ -121,7 +124,7 @@ class Server:
         log_msg(
             f"[DISCONNECTED] server {self.server_address}, client {client_address}."
         )
-        
+
         # client_socket.shutdown(socket.SHUT_RDWR)
         client_socket.close()
 
@@ -199,34 +202,67 @@ class Server:
             )
             return response
 
-        if memory_address in self.shared_cache:
-            # if the memory address is in the server's shared cache
-            # read the data from the shared cache and send it back to the client
-            # we request a lock from the server that owns the memory address
-            # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
-            ac_lock_val = self.serve_acquire_lock(
-                self.server_address, memory_address, lease_timeout, True
-            )
-            if ac_lock_val["status"] != gv.SUCCESS:
-                self.shared_cache.pop(memory_address)
-                return ac_lock_val
-
-            if ac_lock_val["wtag"] == self.shared_cache[memory_address].wtag:
-                return_value = self.shared_cache[memory_address].json()
-                rel_lock_val = self.serve_release_lock(
-                    self.server_address,
-                    memory_address,
-                    ac_lock_val["ltag"],
-                    True,
+        with self.shared_cache.get_lock(memory_address):
+            if self.shared_cache.check_key(memory_address):
+                # if the memory address is in the server's shared cache
+                # read the data from the shared cache and send it back to the client
+                # we request a lock from the server that owns the memory address
+                # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
+                ac_lock_val = self.serve_acquire_lock(
+                    self.server_address, memory_address, lease_timeout, True
                 )
+                if ac_lock_val["status"] != gv.SUCCESS:
+                    self.shared_cache.remove(memory_address)
+                    return ac_lock_val
 
-                if rel_lock_val["status"] != gv.SUCCESS:
-                    self.shared_cache.pop(memory_address)
-                    return rel_lock_val
+                mem_item = self.shared_cache.read(memory_address)
+                if ac_lock_val["wtag"] == mem_item.wtag:
+                    return_value = mem_item.json()
+                    rel_lock_val = self.serve_release_lock(
+                        self.server_address,
+                        memory_address,
+                        ac_lock_val["ltag"],
+                        True,
+                    )
 
-                if rel_lock_val["wtag"] != self.shared_cache[memory_address].wtag:
+                    if rel_lock_val["status"] != gv.SUCCESS:
+                        self.shared_cache.remove(memory_address)
+                        return rel_lock_val
+
+                    if rel_lock_val["wtag"] != mem_item.wtag:
+                        # stale data in cache, fetch from server
+                        self.shared_cache.remove(memory_address)
+                        return self.serve_read(
+                            client_address,
+                            copy_holder_ip,
+                            copy_holder_port,
+                            memory_address,
+                            cascade,
+                        )
+
+                    log_msg(
+                        f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
+                    )
+                    return {
+                        "status": gv.SUCCESS,
+                        "message": "read successful",
+                        **return_value,
+                        "ltag": ac_lock_val["ltag"],
+                    }
+                else:  # give up and then just communicate with the server
                     # stale data in cache, fetch from server
-                    self.shared_cache.pop(memory_address)
+                    self.shared_cache.remove(memory_address)
+
+                    rel_lock_val = self.serve_release_lock(
+                        self.server_address,
+                        memory_address,
+                        ac_lock_val["ltag"],
+                        True,
+                    )
+
+                    if rel_lock_val["status"] != gv.SUCCESS:
+                        return rel_lock_val
+
                     return self.serve_read(
                         client_address,
                         copy_holder_ip,
@@ -235,38 +271,7 @@ class Server:
                         cascade,
                     )
 
-                log_msg(
-                    f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
-                )
-                return {
-                    "status": gv.SUCCESS,
-                    "message": "read successful",
-                    **return_value,
-                    "ltag": ac_lock_val["ltag"],
-                }
-            else:  # give up and then just communicate with the server
-                # stale data in cache, fetch from server
-                self.shared_cache.pop(memory_address)
-
-                rel_lock_val = self.serve_release_lock(
-                    self.server_address,
-                    memory_address,
-                    ac_lock_val["ltag"],
-                    True,
-                )
-
-                if rel_lock_val["status"] != gv.SUCCESS:
-                    return rel_lock_val
-
-                return self.serve_read(
-                    client_address,
-                    copy_holder_ip,
-                    copy_holder_port,
-                    memory_address,
-                    cascade,
-                )
-
-        if not cascade: # this should never happen (see explanation above)
+        if not cascade:  # this should never happen (see explanation above)
             return {
                 "status": gv.ERROR,
                 "message": f"Read host address {host_server} is not the server address {self.server_address}",
@@ -284,9 +289,13 @@ class Server:
 
         # if requested from remote server, update shared cache
         if remote_return["status"] == gv.SUCCESS:
-            self.shared_cache[memory_address] = mp.MemoryItem(
-                remote_return["data"], remote_return["istatus"], remote_return["wtag"]
-            )
+            with self.shared_cache.get_lock(memory_address):
+                self.shared_cache.write(
+                    memory_address,
+                    remote_return["data"],
+                    remote_return["status"],
+                    remote_return["wtag"],
+                )
         return remote_return
 
     def serve_write(
@@ -346,7 +355,7 @@ class Server:
             )
             return response
 
-        if not cascade: # this should never happen (see explanation above)
+        if not cascade:  # this should never happen (see explanation above)
             return {
                 "status": gv.ERROR,
                 "message": f"Write host address {host_server} is not the server address {self.server_address}",
@@ -511,7 +520,9 @@ class Server:
                 "message": "Memory address out of range",
             }
 
-        if host_server != self.server_address: # a host server doesn't need to update its cache
+        if (
+            host_server != self.server_address
+        ):  # a host server doesn't need to update its cache
             self._update_local_copy(memory_address, data, status, wtag)
 
         if len(address_chain) > 0:
@@ -519,7 +530,9 @@ class Server:
             response = self._update_next_copy(
                 address_chain, next_address, memory_address, data, status, wtag
             )
-            print(f"[UPDATE CACHE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}")
+            print(
+                f"[UPDATE CACHE RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}, response {response}"
+            )
             return response
 
         return {
@@ -560,7 +573,9 @@ class Server:
         if update_value["status"] != gv.SUCCESS:
             failed_address = update_value.get("server_address", None)
             if failed_address is None:
-                failed_address = address_chain[0] # the address chain has at least one item if this function is called
+                failed_address = address_chain[
+                    0
+                ]  # the address chain has at least one item if this function is called
             failed_address = (
                 failed_address[0],
                 failed_address[1],
@@ -583,8 +598,17 @@ class Server:
         Description:
         - Dump the server's cache, used for debugging purposes
         """
-        log_msg(f"[DUMP CACHE REQUEST] server {self.server_address}, client {client_address}")
-        cache_items = [{"address": k, **item.json()} for k, item in self.shared_cache.items()]
+        log_msg(
+            f"[DUMP CACHE REQUEST] server {self.server_address}, client {client_address}"
+        )
+        cache_items = [
+            {
+                "address": self.shared_cache.key_map[i],
+                **self.shared_cache.read(self.shared_cache.key_map[i]).json(),
+            }
+            for i in range(self.shared_cache.cache_size)
+            if self.shared_cache.key_map[i] is not None
+        ]
 
         return {
             "status": gv.SUCCESS,
@@ -599,7 +623,8 @@ class Server:
         status: str,
         wtag: int,
     ):
-        self.shared_cache[memory_address] = mp.MemoryItem(data, status, wtag)
+        with self.shared_cache.get_lock(memory_address):
+            self.shared_cache.write(memory_address, data, status, wtag)
         return True
 
     def _update_next_copy(
@@ -720,7 +745,7 @@ class Server:
             cu.send_msg(server_socket, {"type": "disconnect"})
             cu.rec_msg(server_socket)
         finally:
-            #server_socket.shutdown(socket.SHUT_RDWR)
+            # server_socket.shutdown(socket.SHUT_RDWR)
             server_socket.close()
 
 

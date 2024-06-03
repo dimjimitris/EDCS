@@ -1,6 +1,7 @@
 package main.edcs.project;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MemoryManager {
     private Map<Integer, MemoryItem> memory;
@@ -10,9 +11,9 @@ public class MemoryManager {
     private Timer lockTimer;
 
     public MemoryManager(Tuple<Integer, Integer> memoryRange) {
-        this.memory = new HashMap<>();
-        this.locks = new HashMap<>();
-        this.copyHolders = new HashMap<>();
+        this.memory = new ConcurrentHashMap<>();
+        this.locks = new ConcurrentHashMap<>();
+        this.copyHolders = new ConcurrentHashMap<>();
         this.memoryRange = memoryRange;
         this.lockTimer = new Timer();
 

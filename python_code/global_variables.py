@@ -14,6 +14,7 @@ LEASE_TIMEOUT = int(os.getenv("LEASE_TIMEOUT"))                                 
 SERVERS = [tuple(server.split(":")) for server in os.getenv("SERVERS").split(",")]
 SERVERS = [(server[0], int(server[1])) for server in SERVERS] 
 MEMORY_SIZE = int(os.getenv("MEMORY_SIZE"))                                         # 300
+CACHE_SIZE = int(os.getenv("CACHE_SIZE"))                                           # 100
 SUCCESS = int(os.getenv("SUCCESS"))                                                 # 0      
 ERROR = int(os.getenv("ERROR"))                                                     # 1
 INVALID_ADDRESS = int(os.getenv("INVALID_ADDRESS"))                                 # 2
