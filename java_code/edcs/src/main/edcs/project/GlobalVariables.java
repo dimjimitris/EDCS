@@ -18,6 +18,7 @@ public class GlobalVariables {
 
     public static final int MEMORY_SIZE = Integer.parseInt(dotenv.get("MEMORY_SIZE"));
     public static final int CACHE_SIZE = Integer.parseInt(dotenv.get("CACHE_SIZE"));
+    public static final int MAXIMUM_CONNECTIONS = Integer.parseInt(dotenv.get("MAXIMUM_CONNECTIONS"));
 
     public static final int SUCCESS = Integer.parseInt(dotenv.get("SUCCESS"));
     public static final int ERROR = Integer.parseInt(dotenv.get("ERROR"));

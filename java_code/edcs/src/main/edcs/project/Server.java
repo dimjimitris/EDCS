@@ -16,6 +16,7 @@ public class Server {
     private static final int CONNECTION_TIMEOUT = GlobalVariables.CONNECTION_TIMEOUT;
     private static final int LEASE_TIMEOUT = GlobalVariables.LEASE_TIMEOUT;
     private static final int CACHE_SIZE = GlobalVariables.CACHE_SIZE;
+    private static final int MAXIMUM_CONNECTIONS = GlobalVariables.MAXIMUM_CONNECTIONS;
 
     private final Tuple<String, Integer> serverAddress;
     private final Tuple<Integer, Integer> memoryRange;
@@ -43,7 +44,7 @@ public class Server {
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket()) {
             serverSocket.setReuseAddress(true);
-            serverSocket.bind(new InetSocketAddress(serverAddress.getX(), serverAddress.getY()));
+            serverSocket.bind(new InetSocketAddress(serverAddress.getX(), serverAddress.getY()), MAXIMUM_CONNECTIONS);
 
             logMsg("[LISTENING] Server is listening on " + serverAddress);
 
