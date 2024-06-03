@@ -1,0 +1,82 @@
+PS C:\Users\dimig\Desktop\School\Semester 10\Distributed Computing Systems\Project\EDCS\python_code> python .\test_times.py
+Testing basic functionality
+Put all the server up and running and press enter to continue
+--------------------------------------------------
+Testing with small data
+--------------------------------------------------
+Testing serial reads to the same memory address
+Time taken by test_serial_reads: 8.0142 seconds
+Testing serial writes to the same memory address
+Time taken by test_serial_writes: 9.9119 seconds
+Testing concurrent reads to the same memory address
+Time taken by test_concurrent_reads: 3.2987 seconds
+Testing concurrent writes to the same memory address
+Time taken by test_concurrent_writes: 5.0893 seconds
+Testing serial reads to random memory addresses
+Time taken by test_random_reads: 5.1168 seconds
+Testing serial writes to random memory addresses
+Time taken by test_random_writes: 7.7614 seconds
+Testing random concurrent reads
+Time taken by test_random_concurrent_reads: 0.2510 seconds
+Testing random concurrent writes
+Time taken by test_random_concurrent_writes: 0.2820 seconds
+--------------------------------------------------
+Testing with large data
+Testing serial reads to the same memory address
+--------------------------------------------------
+Time taken by test_serial_reads: 7.7086 seconds
+Testing serial writes to the same memory address
+Time taken by test_serial_writes: 9.8145 seconds
+Testing concurrent reads to the same memory address
+Time taken by test_concurrent_reads: 3.3050 seconds
+Testing concurrent writes to the same memory address
+Time taken by test_concurrent_writes: 5.0723 seconds
+Testing serial reads to random memory addresses
+Time taken by test_random_reads: 5.6368 seconds
+Testing serial writes to random memory addresses
+Time taken by test_random_writes: 9.3112 seconds
+Testing random concurrent reads
+Time taken by test_random_concurrent_reads: 0.4119 seconds
+Testing random concurrent writes
+Time taken by test_random_concurrent_writes: 0.2887 seconds
+PS C:\Users\dimig\Desktop\School\Semester 10\Distributed Computing Systems\Project\EDCS\python_code> python .\test_times.py -type java
+Testing basic functionality
+Put all the server up and running and press enter to continue
+--------------------------------------------------
+Testing with small data
+--------------------------------------------------
+Testing serial reads to the same memory address
+Time taken by test_serial_reads: 8.1255 seconds
+Testing serial writes to the same memory address
+Time taken by test_serial_writes: 11.5513 seconds
+Testing concurrent reads to the same memory address
+Time taken by test_concurrent_reads: 3.3122 seconds
+Testing concurrent writes to the same memory address
+Time taken by test_concurrent_writes: 5.0947 seconds
+Testing serial reads to random memory addresses
+Time taken by test_random_reads: 8.8900 seconds
+Testing serial writes to random memory addresses
+Time taken by test_random_writes: 11.8102 seconds
+Testing random concurrent reads
+Time taken by test_random_concurrent_reads: 0.2705 seconds
+Testing random concurrent writes
+Time taken by test_random_concurrent_writes: 0.3813 seconds
+--------------------------------------------------
+Testing with large data
+Testing serial reads to the same memory address
+--------------------------------------------------
+Time taken by test_serial_reads: 8.3173 seconds
+Testing serial writes to the same memory address
+Time taken by test_serial_writes: 11.5419 seconds
+Testing concurrent reads to the same memory address
+Time taken by test_concurrent_reads: 3.4636 seconds
+Testing concurrent writes to the same memory address
+Time taken by test_concurrent_writes: 5.1047 seconds
+Testing serial reads to random memory addresses
+Time taken by test_random_reads: 7.6986 seconds
+Testing serial writes to random memory addresses
+Time taken by test_random_writes: 12.4218 seconds
+Testing random concurrent reads
+Time taken by test_random_concurrent_reads: 0.3441 seconds
+Testing random concurrent writes
+Time taken by test_random_concurrent_writes: 0.3645 seconds

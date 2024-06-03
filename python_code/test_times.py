@@ -5,6 +5,7 @@ import client_wrapper as cw
 import global_variables as gv
 import sys
 import jpype
+import argparse
 
 small_data = "test"
 large_data = "a" * 1000
@@ -137,20 +138,19 @@ def test_random_concurrent_writes(clients: list[cw.ClientWrapper], data: str, co
 
 # Default client logic type is Python
 CLIENT_LOGIC_TYPE = 'python'
+REPS = 100
 
 if __name__ == "__main__":
     random.seed(17)
-    # Check if command-line argument -type is provided and set CLIENT_LOGIC_TYPE accordingly
-    if len(sys.argv) > 1 and sys.argv[1] == "-type":
-        if len(sys.argv) > 2:
-            if sys.argv[2] in ['java', 'python']:
-                CLIENT_LOGIC_TYPE = sys.argv[2]
-            else:
-                print("Invalid client logic type. Please choose 'java' or 'python'.")
-                sys.exit(1)
-        else:
-            print("Client logic type argument missing. Please specify 'java' or 'python'.")
-            sys.exit(1)
+    # Create an argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-type", choices=['java', 'python'], default='python')
+    parser.add_argument("-reps", type=int, default=100)
+    args = parser.parse_args()
+
+    # Set CLIENT_LOGIC_TYPE and REPS from command-line arguments
+    CLIENT_LOGIC_TYPE = args.type
+    REPS = args.reps
 
     # Start the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     input("Put all the server up and running and press enter to continue")
     clients = [
         cw.ClientWrapper(CLIENT_LOGIC_TYPE, random.choice(gv.SERVERS))
-        for _ in range(100)
+        for _ in range(REPS)
     ]
     try:
         for client in clients:
