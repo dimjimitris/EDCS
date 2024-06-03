@@ -611,7 +611,7 @@ public class Server {
         for(Map.Entry<Integer, Integer> e : sharedMemory.keyMap.entrySet()) {
             int memoryAddress = e.getValue();
 
-            if (memoryAddress < 0 || memoryAddress >= memoryRange.getY()) {
+            if (memoryAddress < 0) {
                 continue;
             }
 
