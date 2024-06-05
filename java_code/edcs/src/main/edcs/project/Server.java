@@ -777,7 +777,7 @@ public class Server {
                     disconnectFromServer(hostServerSocket);
                 }
             } catch (IOException e) {
-                logMsg("[ERROR DISCONNECTING INTERNAL] " + e.getMessage());
+                logMsg("[" + logType + " ERROR DISCONNECTING INTERNAL] server " + serverAddress + ", client " + clientAddress + ", memory address " + memoryAddress + ": " + e.getMessage());
             }
         }
     }

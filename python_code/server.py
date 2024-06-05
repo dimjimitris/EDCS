@@ -684,7 +684,13 @@ class Server:
                 "message": f"Failed to connect to the host with error: {e}",
             }
         finally:
-            self._disconnect_from_server(host_server_socket)
+            try:
+                if host_server_socket is not None:
+                    self._disconnect_from_server(host_server_socket)
+            except Exception as e:
+                log_msg(
+                    f"[{log_type} ERROR DISCONNECTING INTERNAL] server {self.server_address}, client {client_address}, memory address {memory_address}: {e}"
+                )
             return response
 
     def _get_server_index(self, memory_address: int) -> int:
