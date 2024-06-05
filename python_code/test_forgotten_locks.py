@@ -2,27 +2,31 @@ import client_wrapper as cw
 import global_variables as gv
 import time
 import threading as th
-import sys
 import jpype
+import argparse
 
 sleep_time = (gv.LEASE_TIMEOUT + 1) // 2
 
 # Default client logic type
 CLIENT_LOGIC_TYPE = 'python'
 
-def test_forgotten_locks():
+def test_forgotten_locks(server_index):
+    """
+    Description: test that forgotten locks are released after the lease timeout
+    """
+    memory_address = (gv.MEMORY_SIZE // len(gv.SERVERS)) * server_index
     def acquire_lock_thread():
-        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[0])
+        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[server_index])
         client.connect()
-        resp = client.acquire_lock(0)
+        resp = client.acquire_lock(memory_address)
         print(f"Acquire lock response: {resp}")
         client.disconnect()
 
     def re_acquire_lock_thread():
         time.sleep(sleep_time)
-        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[0])
+        client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, gv.SERVERS[server_index])
         client.connect()
-        resp = client.acquire_lock(0)
+        resp = client.acquire_lock(memory_address)
         print(f"Re-acquire lock response: {resp}")
         client.disconnect()
 
@@ -37,24 +41,24 @@ def test_forgotten_locks():
     for thread in threads:
         thread.join()
 
+
+CLIENT_LOGIC_TYPE = 'python'
+SERVER_INDEX = 0
+
 if __name__ == "__main__":
-    # Check if command-line argument -type is provided and set CLIENT_LOGIC_TYPE accordingly
-    if len(sys.argv) > 1 and sys.argv[1] == "-type":
-        if len(sys.argv) > 2:
-            if sys.argv[2] in ['java', 'python']:
-                CLIENT_LOGIC_TYPE = sys.argv[2]
-            else:
-                print("Invalid client logic type. Please choose 'java' or 'python'.")
-                sys.exit(1)
-        else:
-            print("Client logic type argument missing. Please specify 'java' or 'python'.")
-            sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-type", choices=['java', 'python'], default='python')
+    parser.add_argument("-server", type=int, default=0)
+    args = parser.parse_args()
+
+    CLIENT_LOGIC_TYPE = args.type
+    SERVER_INDEX = args.server
 
     # Start the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':
         jpype.startJVM(classpath=[gv.JAVA_JAR_FILE])
 
-    test_forgotten_locks()
+    test_forgotten_locks(SERVER_INDEX)
 
     # Stop the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':

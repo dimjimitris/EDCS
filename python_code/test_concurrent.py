@@ -2,26 +2,28 @@ import sys
 
 import jpype
 import client_wrapper as cw
-import time
+import argparse
 import threading as th
 
 import global_variables as gv
 
-
-# Default client logic type
-CLIENT_LOGIC_TYPE = 'python'
-
 SERVERS = gv.SERVERS
 
 # all reads after a write return the same data
-def test_reads_after_write(thread_cnt, local):
-    client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[0])
+def test_reads_after_write(server_index, thread_cnt, local):
+    """
+    Description: Consistency test, all reads after a write should return the same data
+    """
+    client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[server_index])
+
+    memory_address = server_index * (gv.MEMORY_SIZE // len(SERVERS))
+
     client.connect()
-    client.write(0, 0)
+    client.write(memory_address, 0)
     client.disconnect()
 
-    local_server = SERVERS[0]
-    remote_server = SERVERS[1]
+    local_server = SERVERS[server_index]
+    remote_server = SERVERS[(server_index + 1) % len(SERVERS)]
 
     server = local_server if local else remote_server
 
@@ -34,11 +36,11 @@ def test_reads_after_write(thread_cnt, local):
 
     def read_thread(idx):
         client : cw.ClientWrapper = clients[idx]
-        results[idx] = client.read(0)
+        results[idx] = client.read(memory_address)
 
     def write_thread(idx):
         client : cw.ClientWrapper = clients[idx]
-        client.write(0, 1)
+        client.write(memory_address, 1)
 
     threads = [th.Thread(target=read_thread, args=(i,)) for i in range(thread_cnt - 1)]
     threads.append(th.Thread(target=write_thread, args=(thread_cnt - 1,)))
@@ -59,18 +61,18 @@ def test_reads_after_write(thread_cnt, local):
     for client in clients:
         client.disconnect()
 
+# Default client logic type
+CLIENT_LOGIC_TYPE = 'python'
+SERVER_INDEX = 0
+
 if __name__ == "__main__":
-    # Check if command-line argument -type is provided and set CLIENT_LOGIC_TYPE accordingly
-    if len(sys.argv) > 1 and sys.argv[1] == "-type":
-        if len(sys.argv) > 2:
-            if sys.argv[2] in ['java', 'python']:
-                CLIENT_LOGIC_TYPE = sys.argv[2]
-            else:
-                print("Invalid client logic type. Please choose 'java' or 'python'.")
-                sys.exit(1)
-        else:
-            print("Client logic type argument missing. Please specify 'java' or 'python'.")
-            sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-type", choices=['java', 'python'], default='python')
+    parser.add_argument("-server", type=int, default=0)
+    args = parser.parse_args()
+
+    CLIENT_LOGIC_TYPE = args.type
+    SERVER_INDEX = args.server
 
     # Start the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':
@@ -78,11 +80,11 @@ if __name__ == "__main__":
 
     print("Testing reads after write, reading from local server")
     input("Put all the server up and running and press enter to continue")
-    test_reads_after_write(20, True)
+    test_reads_after_write(SERVER_INDEX, 20, True)
     print("-" * 50)
     print("Testing reads after write, reading from remote server")
     input("Put all the server up and running and press enter to continue")
-    test_reads_after_write(20, False)
+    test_reads_after_write(SERVER_INDEX, 20, False)
     print("-" * 50)
     
     if CLIENT_LOGIC_TYPE == 'java':

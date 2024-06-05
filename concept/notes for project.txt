@@ -1,1 +1,0 @@
-1) It should work even if one of the nodes fails

@@ -1,7 +1,7 @@
 import client_wrapper as cw
 import global_variables as gv
 
-import sys
+import argparse
 import jpype
 
 # Default client logic type
@@ -225,17 +225,11 @@ def test_copy_holder_chain(index):
     print("-" * 50)
 
 if __name__ == "__main__":
-    # Check if command-line argument -type is provided and set CLIENT_LOGIC_TYPE accordingly
-    if len(sys.argv) > 1 and sys.argv[1] == "-type":
-        if len(sys.argv) > 2:
-            if sys.argv[2] in ['java', 'python']:
-                CLIENT_LOGIC_TYPE = sys.argv[2]
-            else:
-                print("Invalid client logic type. Please choose 'java' or 'python'.")
-                sys.exit(1)
-        else:
-            print("Client logic type argument missing. Please specify 'java' or 'python'.")
-            sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-type", choices=['java', 'python'], default='python')
+    args = parser.parse_args()
+
+    CLIENT_LOGIC_TYPE = args.type
 
     # Start the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':
