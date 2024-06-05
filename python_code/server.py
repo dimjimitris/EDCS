@@ -33,7 +33,7 @@ class Server:
         self.memory_ranges = memory_ranges
 
         self.memory_manager = mm.MemoryManager(memory_range=self.memory_range)
-        self.shared_cache = cache.Cache(cache_size=CACHE_SIZE)
+        self.shared_memory = cache.Cache(cache_size=CACHE_SIZE)
 
     def start(self):
         """
@@ -206,18 +206,14 @@ class Server:
         # read the data from the shared cache and send it back to the client
         # we request a lock from the server that owns the memory address
         # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
-        mem_item = None
-        with self.shared_cache.get_lock(memory_address):
-            if self.shared_cache.check_key(memory_address):
-                mem_item = self.shared_cache.read(memory_address)
+        mem_item = self.shared_memory.read(memory_address)
         
         if mem_item is not None:
             ac_lock_val = self.serve_acquire_lock(
                 self.server_address, memory_address, lease_timeout, True
             )
             if ac_lock_val["status"] != gv.SUCCESS:
-                with self.shared_cache.get_lock(memory_address):
-                    self.shared_cache.remove(memory_address)
+                self.shared_memory.remove(memory_address)
                 return ac_lock_val
             
             if ac_lock_val["wtag"] == mem_item.wtag:
@@ -230,14 +226,12 @@ class Server:
                 )
 
                 if rel_lock_val["status"] != gv.SUCCESS:
-                    with self.shared_cache.get_lock(memory_address):
-                        self.shared_cache.remove(memory_address)
+                    self.shared_memory.remove(memory_address)
                     return rel_lock_val
 
                 if rel_lock_val["wtag"] != mem_item.wtag:
                     # stale data in cache, fetch from server
-                    with self.shared_cache.get_lock(memory_address):
-                        self.shared_cache.remove(memory_address)
+                    self.shared_memory.remove(memory_address)
                     return self.serve_read(
                         client_address,
                         copy_holder_ip,
@@ -257,8 +251,7 @@ class Server:
                 }
             else:  # give up and then just communicate with the server
                 # stale data in cache, fetch from server
-                with self.shared_cache.get_lock(memory_address):
-                    self.shared_cache.remove(memory_address)
+                self.shared_memory.remove(memory_address)
 
                 rel_lock_val = self.serve_release_lock(
                     self.server_address,
@@ -296,13 +289,12 @@ class Server:
 
         # if requested from remote server, update shared cache
         if remote_return["status"] == gv.SUCCESS:
-            with self.shared_cache.get_lock(memory_address):
-                self.shared_cache.write(
-                    memory_address,
-                    remote_return["data"],
-                    remote_return["status"],
-                    remote_return["wtag"],
-                )
+            self.shared_memory.write(
+                memory_address,
+                remote_return["data"],
+                remote_return["status"],
+                remote_return["wtag"],
+            )
         return remote_return
 
     def serve_write(
@@ -610,11 +602,11 @@ class Server:
         )
         cache_items = [
             {
-                "address": self.shared_cache.key_map[i],
-                **self.shared_cache.read(self.shared_cache.key_map[i]).json(),
+                "address": self.shared_memory.key_map[i],
+                **self.shared_memory.read_no_sync(self.shared_memory.key_map[i]).json(),
             }
-            for i in range(self.shared_cache.cache_size)
-            if self.shared_cache.key_map[i] is not None
+            for i in range(self.shared_memory.cache_size)
+            if self.shared_memory.key_map[i] is not None
         ]
 
         return {
@@ -630,8 +622,7 @@ class Server:
         status: str,
         wtag: int,
     ):
-        with self.shared_cache.get_lock(memory_address):
-            self.shared_cache.write(memory_address, data, status, wtag)
+        self.shared_memory.write(memory_address, data, status, wtag)
         return True
 
     def _update_next_copy(

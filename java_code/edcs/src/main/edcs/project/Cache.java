@@ -24,39 +24,46 @@ public class Cache {
         }
     }
 
-    public boolean checkKey(int memoryAddress) {
+    // used only in dumpcache, doesn't really matter as a function
+    // we don't need it to be synchronous
+    public MemoryItem readNoSync(int memoryAddress) {
         int key = memoryAddress % cacheSize;
-        return memoryAddress == keyMap.get(key);
-    }
-
-    public MemoryItem read(int memoryAddress) {
-        int key = (memoryAddress % cacheSize + cacheSize) % cacheSize;
         if (memoryAddress != keyMap.get(key)) {
             return null;
         }
         return cache.get(key);
     }
 
-    public MemoryItem write(int memoryAddress, Object data, String status, long wtag) {
-        int key = memoryAddress % cacheSize;
-        MemoryItem memoryItem = cache.get(key);
-        if (memoryAddress == keyMap.get(key)) {
-            memoryItem.setData(data);
-            memoryItem.setStatus(status);
-            memoryItem.setWtag(wtag);
-        } else {
-            keyMap.put(key, memoryAddress);
-            memoryItem = new MemoryItem(data, status, wtag);
-            cache.put(key, memoryItem);
+    public MemoryItem read(int memoryAddress) {
+        synchronized (this.getLock(memoryAddress)) {
+            return readNoSync(memoryAddress);
         }
-        return memoryItem;
+    }
+
+    public MemoryItem write(int memoryAddress, Object data, String status, long wtag) {
+        synchronized (this.getLock(memoryAddress)) {
+            int key = memoryAddress % cacheSize;
+            MemoryItem memoryItem = cache.get(key);
+            if (memoryAddress == keyMap.get(key)) {
+                memoryItem.setData(data);
+                memoryItem.setStatus(status);
+                memoryItem.setWtag(wtag);
+            } else {
+                keyMap.put(key, memoryAddress);
+                memoryItem = new MemoryItem(data, status, wtag);
+                cache.put(key, memoryItem);
+            }
+            return memoryItem;
+        }
     }
 
     public void remove(int memoryAddress) {
-        int key = memoryAddress % cacheSize;
-        if (memoryAddress == keyMap.get(key)) {
-            keyMap.put(key, -1);
-            cache.put(key, new MemoryItem(null, "C", -1));
+        synchronized (this.getLock(memoryAddress)) {
+            int key = memoryAddress % cacheSize;
+            if (memoryAddress == keyMap.get(key)) {
+                keyMap.put(key, -1);
+                cache.put(key, new MemoryItem(null, "C", -1));
+            }
         }
     }
 
