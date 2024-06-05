@@ -202,67 +202,42 @@ class Server:
             )
             return response
 
+        # if the memory address is in the server's shared cache
+        # read the data from the shared cache and send it back to the client
+        # we request a lock from the server that owns the memory address
+        # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
+        mem_item = None
         with self.shared_cache.get_lock(memory_address):
             if self.shared_cache.check_key(memory_address):
-                # if the memory address is in the server's shared cache
-                # read the data from the shared cache and send it back to the client
-                # we request a lock from the server that owns the memory address
-                # we compare the wtags (last write tags) to make sure that the cached data is up-to-date
-                ac_lock_val = self.serve_acquire_lock(
-                    self.server_address, memory_address, lease_timeout, True
-                )
-                if ac_lock_val["status"] != gv.SUCCESS:
-                    self.shared_cache.remove(memory_address)
-                    return ac_lock_val
-
                 mem_item = self.shared_cache.read(memory_address)
-                if ac_lock_val["wtag"] == mem_item.wtag:
-                    return_value = mem_item.json()
-                    rel_lock_val = self.serve_release_lock(
-                        self.server_address,
-                        memory_address,
-                        ac_lock_val["ltag"],
-                        True,
-                    )
-
-                    if rel_lock_val["status"] != gv.SUCCESS:
-                        self.shared_cache.remove(memory_address)
-                        return rel_lock_val
-
-                    if rel_lock_val["wtag"] != mem_item.wtag:
-                        # stale data in cache, fetch from server
-                        self.shared_cache.remove(memory_address)
-                        return self.serve_read(
-                            client_address,
-                            copy_holder_ip,
-                            copy_holder_port,
-                            memory_address,
-                            cascade,
-                        )
-
-                    log_msg(
-                        f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
-                    )
-                    return {
-                        "status": gv.SUCCESS,
-                        "message": "read successful",
-                        **return_value,
-                        "ltag": ac_lock_val["ltag"],
-                    }
-                else:  # give up and then just communicate with the server
-                    # stale data in cache, fetch from server
+        
+        if mem_item is not None:
+            ac_lock_val = self.serve_acquire_lock(
+                self.server_address, memory_address, lease_timeout, True
+            )
+            if ac_lock_val["status"] != gv.SUCCESS:
+                with self.shared_cache.get_lock(memory_address):
                     self.shared_cache.remove(memory_address)
+                return ac_lock_val
+            
+            if ac_lock_val["wtag"] == mem_item.wtag:
+                return_value = mem_item.json()
+                rel_lock_val = self.serve_release_lock(
+                    self.server_address,
+                    memory_address,
+                    ac_lock_val["ltag"],
+                    True,
+                )
 
-                    rel_lock_val = self.serve_release_lock(
-                        self.server_address,
-                        memory_address,
-                        ac_lock_val["ltag"],
-                        True,
-                    )
+                if rel_lock_val["status"] != gv.SUCCESS:
+                    with self.shared_cache.get_lock(memory_address):
+                        self.shared_cache.remove(memory_address)
+                    return rel_lock_val
 
-                    if rel_lock_val["status"] != gv.SUCCESS:
-                        return rel_lock_val
-
+                if rel_lock_val["wtag"] != mem_item.wtag:
+                    # stale data in cache, fetch from server
+                    with self.shared_cache.get_lock(memory_address):
+                        self.shared_cache.remove(memory_address)
                     return self.serve_read(
                         client_address,
                         copy_holder_ip,
@@ -270,6 +245,38 @@ class Server:
                         memory_address,
                         cascade,
                     )
+
+                log_msg(
+                    f"[READ RESPONSE] server {self.server_address}, client {client_address}, address {memory_address}"
+                )
+                return {
+                    "status": gv.SUCCESS,
+                    "message": "read successful",
+                    **return_value,
+                    "ltag": ac_lock_val["ltag"],
+                }
+            else:  # give up and then just communicate with the server
+                # stale data in cache, fetch from server
+                with self.shared_cache.get_lock(memory_address):
+                    self.shared_cache.remove(memory_address)
+
+                rel_lock_val = self.serve_release_lock(
+                    self.server_address,
+                    memory_address,
+                    ac_lock_val["ltag"],
+                    True,
+                )
+
+                if rel_lock_val["status"] != gv.SUCCESS:
+                    return rel_lock_val
+
+                return self.serve_read(
+                    client_address,
+                    copy_holder_ip,
+                    copy_holder_port,
+                    memory_address,
+                    cascade,
+                )
 
         if not cascade:  # this should never happen (see explanation above)
             return {

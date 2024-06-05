@@ -10,13 +10,13 @@ import global_variables as gv
 SERVERS = gv.SERVERS
 
 # all reads after a write return the same data
-def test_reads_after_write(server_index, thread_cnt, local):
+def test_reads_after_write(server_index, offset, thread_cnt, local):
     """
     Description: Consistency test, all reads after a write should return the same data
     """
     client = cw.ClientWrapper(CLIENT_LOGIC_TYPE, SERVERS[server_index])
 
-    memory_address = server_index * (gv.MEMORY_SIZE // len(SERVERS))
+    memory_address = server_index * (gv.MEMORY_SIZE // len(SERVERS)) + offset
 
     client.connect()
     client.write(memory_address, 0)
@@ -69,10 +69,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-type", choices=['java', 'python'], default='python')
     parser.add_argument("-server", type=int, default=0)
+    parser.add_argument("-off", type=int, default=0)
     args = parser.parse_args()
 
     CLIENT_LOGIC_TYPE = args.type
     SERVER_INDEX = args.server
+    OFFSET = args.off
 
     # Start the JVM if Java client logic is chosen
     if CLIENT_LOGIC_TYPE == 'java':
@@ -80,11 +82,11 @@ if __name__ == "__main__":
 
     print("Testing reads after write, reading from local server")
     input("Put all the server up and running and press enter to continue")
-    test_reads_after_write(SERVER_INDEX, 20, True)
+    test_reads_after_write(SERVER_INDEX, OFFSET, 40, True)
     print("-" * 50)
     print("Testing reads after write, reading from remote server")
     input("Put all the server up and running and press enter to continue")
-    test_reads_after_write(SERVER_INDEX, 20, False)
+    test_reads_after_write(SERVER_INDEX, OFFSET, 40, False)
     print("-" * 50)
     
     if CLIENT_LOGIC_TYPE == 'java':

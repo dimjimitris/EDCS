@@ -254,57 +254,67 @@ public class Server {
             return response;
         }
 
+        // if the memory address is in the server's shared cache
+        // read the data from the shared cache and send it back to the client
+        // we request a lock from the server that owns the memory address
+        // we compare the wtags (last write tags) to make sure that the cached data is up-to-date
+        MemoryItem memoryItem = null;
         synchronized (sharedMemory.getLock(memoryAddress)) {
             if (sharedMemory.checkKey(memoryAddress)) {
-                // if the memory address is in the server's shared cache
-                // read the data from the shared cache and send it back to the client
-                // we request a lock from the server that owns the memory address
-                // we compare the wtags (last write tags) to make sure that the cached data is up-to-date
-                JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leaseTimeout, true);
-                if (acLockVal.getInt("status") != GlobalVariables.SUCCESS) {
-                    sharedMemory.remove(memoryAddress);
-                    return acLockVal;
-                }
-                MemoryItem memoryItem = sharedMemory.read(memoryAddress);
-                if (acLockVal.getLong("wtag") == memoryItem.getWtag()) {
-                    JSONObject relLockVal = serveReleaseLock(serverAddress, memoryAddress, acLockVal.getLong("ltag"),true);
-
-                    if (relLockVal.getInt("status") != GlobalVariables.SUCCESS) {
-                        sharedMemory.remove(memoryAddress);
-                        return relLockVal;
-                    }
-
-                    if (relLockVal.getLong("wtag") != memoryItem.getWtag()) {
-                        // stale data in cache, fetch from server
-                        sharedMemory.remove(memoryAddress);
-                        return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
-                    }
-
-                    JSONObject response = new JSONObject();
-                    response.put("status", GlobalVariables.SUCCESS);
-                    response.put("message", "read successful");
-                    response.put("data", memoryItem.getData() == null ? JSONObject.NULL : memoryItem.getData());
-                    response.put("istatus", memoryItem.getStatus());
-                    response.put("wtag", memoryItem.getWtag());
-                    response.put("ltag", acLockVal.getLong("ltag"));
-                    logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
-                    return response;
-                }
-                else {
-                    // stale data in cache, fetch from server
-                    sharedMemory.remove(memoryAddress);
-
-                    JSONObject relLockVal = serveReleaseLock(serverAddress, memoryAddress, acLockVal.getLong("ltag"),true);
-
-                    if (relLockVal.getInt("status") != GlobalVariables.SUCCESS) {
-                        return relLockVal;
-                    }
-
-                    return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
-                }
+                memoryItem = sharedMemory.read(memoryAddress);
             }
         }
 
+        if (memoryItem != null) {
+           JSONObject acLockVal = serveAcquireLock(serverAddress, memoryAddress, leaseTimeout, true);
+            if (acLockVal.getInt("status") != GlobalVariables.SUCCESS) {
+                sharedMemory.remove(memoryAddress);
+                return acLockVal;
+            }
+
+            if (acLockVal.getLong("wtag") == memoryItem.getWtag()) {
+                JSONObject relLockVal = serveReleaseLock(serverAddress, memoryAddress, acLockVal.getLong("ltag"),true);
+
+                if (relLockVal.getInt("status") != GlobalVariables.SUCCESS) {
+                    synchronized (sharedMemory.getLock(memoryAddress)) {
+                        sharedMemory.remove(memoryAddress);
+                    }
+                    return relLockVal;
+                }
+
+                if (relLockVal.getLong("wtag") != memoryItem.getWtag()) {
+                    // stale data in cache, fetch from server
+                    synchronized (sharedMemory.getLock(memoryAddress)) {
+                        sharedMemory.remove(memoryAddress);
+                    }
+                    return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
+                }
+
+                JSONObject response = new JSONObject();
+                response.put("status", GlobalVariables.SUCCESS);
+                response.put("message", "read successful");
+                response.put("data", memoryItem.getData() == null ? JSONObject.NULL : memoryItem.getData());
+                response.put("istatus", memoryItem.getStatus());
+                response.put("wtag", memoryItem.getWtag());
+                response.put("ltag", acLockVal.getLong("ltag"));
+                logMsg("[READ RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
+                return response;
+            }
+            else {
+                // stale data in cache, fetch from server
+                synchronized (sharedMemory.getLock(memoryAddress)) {
+                    sharedMemory.remove(memoryAddress);
+                }
+
+                JSONObject relLockVal = serveReleaseLock(serverAddress, memoryAddress, acLockVal.getLong("ltag"),true);
+
+                if (relLockVal.getInt("status") != GlobalVariables.SUCCESS) {
+                    return relLockVal;
+                }
+
+                return serveRead(clientAddress, copyHolderIP, copyHolderPort, memoryAddress, cascade);
+            }
+        }
 
         if (!cascade) { // this should never happen (see explanation above)
             JSONObject response = new JSONObject();
