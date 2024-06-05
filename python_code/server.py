@@ -292,7 +292,7 @@ class Server:
             self.shared_memory.write(
                 memory_address,
                 remote_return["data"],
-                remote_return["status"],
+                remote_return["istatus"],
                 remote_return["wtag"],
             )
         return remote_return
