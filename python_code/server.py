@@ -125,8 +125,13 @@ class Server:
             f"[DISCONNECTED] server {self.server_address}, client {client_address}."
         )
 
-        # client_socket.shutdown(socket.SHUT_RDWR)
-        client_socket.close()
+        try:
+            # client_socket.shutdown(socket.SHUT_RDWR)
+            client_socket.close()
+        except Exception as e:
+            log_msg(
+                f"[ERROR CLOSING] server {self.server_address}, client {client_address}: {e}"
+            )
 
     def serve_read(
         self,
@@ -665,6 +670,7 @@ class Server:
         Wrapper function to connect to a remote server and send a message.
         It is used when our requests want to retrieve something from another server.
         """
+        host_server_socket = None
         response = None
         try:
             host_server_socket = self._connect_to_server(
@@ -691,7 +697,7 @@ class Server:
                 log_msg(
                     f"[{log_type} ERROR DISCONNECTING INTERNAL] server {self.server_address}, client {client_address}, memory address {memory_address}: {e}"
                 )
-            return response
+        return response
 
     def _get_server_index(self, memory_address: int) -> int:
         """

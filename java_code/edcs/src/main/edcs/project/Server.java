@@ -759,18 +759,18 @@ public class Server {
         obj.put("args", args);
 
         Socket hostServerSocket = null;
+        JSONObject result = null;
         try {
             hostServerSocket = connectToServer(hostServer, CONNECTION_TIMEOUT);
             CommUtils.sendMsg(hostServerSocket, obj);
-            JSONObject response = CommUtils.recMsg(hostServerSocket);
+            result = CommUtils.recMsg(hostServerSocket);
             logMsg("[" + logType + " RESPONSE] server " + serverAddress + ", client " + clientAddress + ", address " + memoryAddress);
-            return response;
         } catch (IOException e) {
             logMsg("[" + logType + " ERROR] server" + serverAddress + ", client " + clientAddress + ", address " + memoryAddress + ": " + e);
             JSONObject error = new JSONObject();
             error.put("status", GlobalVariables.ERROR);
             error.put("message", "Failed to connect to the host with error: " + e.getMessage());
-            return error;
+            result = error;
         } finally {
             try {
                 if (hostServerSocket != null) {
@@ -780,6 +780,7 @@ public class Server {
                 logMsg("[" + logType + " ERROR DISCONNECTING INTERNAL] server " + serverAddress + ", client " + clientAddress + ", memory address " + memoryAddress + ": " + e.getMessage());
             }
         }
+        return result;
     }
 
     private Tuple<String, Integer> getServerAddress(int memoryAddress) {
