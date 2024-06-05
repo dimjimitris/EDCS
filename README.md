@@ -125,6 +125,8 @@ Explanations:
 - `ClientApp`: same as the Python `client` but for the Java implementation
 - `ServerApp`: implements the main method of the Python `server` module, but in Java.
 
+The Java code was written as an IntelliJ IDEA Java Project. The Java jar files which are used for servers and clients (see [usage](#usage)) were produces as Artifacts through IntelliJ in case you wish to reproduce them.
+
 ## Usage
 
 .env files
@@ -149,7 +151,7 @@ As mentioned in the `concept` the Servers' addresses and memory space are static
 
 Python code:
 ```bash
-$ python3 server.py -h
+/python_code$ python3 server.py -h
 usage: server.py [-h] -server SERVER
 
 Start a server process
@@ -157,7 +159,7 @@ Start a server process
 options:
   -h, --help      show this help message and exit
   -server SERVER  The index of the server in the list of servers
-$ python3 client.py -h
+/python_code$ python3 client.py -h
 usage: client.py [-h] [-server SERVER]
 
 Client to connect to a memory server
