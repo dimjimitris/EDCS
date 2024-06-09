@@ -20,7 +20,11 @@ def main():
         random.choice(gv.SERVERS) if server_index is None else gv.SERVERS[args.server]
     )
     client = client_logic.Client(server_address)
-    client.connect()
+    try:
+        client.connect()
+    except Exception:
+        print(f"Failed to connect to server with index {server_index}. Exiting.")
+        return
 
     while True:
         try:

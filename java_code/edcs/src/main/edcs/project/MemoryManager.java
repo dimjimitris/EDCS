@@ -15,6 +15,10 @@ public class MemoryManager {
         this.locks = new ConcurrentHashMap<>();
         this.copyHolders = new ConcurrentHashMap<>();
         this.memoryRange = memoryRange;
+        // the lockTimer is basically a thread that is tasked with
+        // running all the lock-lease timeout tasks that occur
+        // when a remote process acquires a lock
+        // This is an implementation difference compared to our python code
         this.lockTimer = new Timer();
 
         for(int i = this.memoryRange.getX(); i < this.memoryRange.getY(); i++) {

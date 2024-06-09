@@ -3,6 +3,7 @@
 ## Authors
 
 Dimitrios Georgousis (K-7729)
+
 Gabriel Paic
 
 ## Description
@@ -189,5 +190,5 @@ Options:
 In general, it is advised and expected that you have the Servers up and running before connecting clients to them. For example: the proposed deployment is one Windows Java Server, one Linux Java Server, one Linux Python Server and Python cliens running on the Windows machine. To properly deploy this system one would execute something like the following:
 - `java -jar server-app.jar -server 0` on Windows
 - `java -jar server-app.jar -server 1` on Linux
--  `server.py -server 2` on Linux
+- `python server.py -server 2` on Linux
 - and run clients on the Windows machine.

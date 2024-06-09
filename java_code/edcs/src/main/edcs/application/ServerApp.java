@@ -40,6 +40,11 @@ public class ServerApp {
         System.out.println("  -server <SERVER_INDEX>   The index of the server in the list of servers");
     }
 
+    /*
+    Description: given a server index, start the server process
+    This function finds the memory range and network address that this server
+    should use and starts the server process with these parameters
+     */
     private static void startServerProcess(int serverIndex) throws IOException {
         int memorySize = GlobalVariables.MEMORY_SIZE;
         int serverCount = GlobalVariables.SERVERS.toArray().length;

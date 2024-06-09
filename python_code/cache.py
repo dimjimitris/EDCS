@@ -14,12 +14,20 @@ class Cache:
         self.locks = {i: th.Lock() for i in range(cache_size)}
 
     def read_no_sync(self, memory_address: int) -> None | mp.MemoryItem:
+        """
+        Description: Read from cache without synchronization.
+        Used in the dumpcache functionality, which is called just for
+        debugging/checking purposes.
+        """
         key = memory_address % self.cache_size
         if self.key_map[key] != memory_address:
             return None
         return self.cache[key]
 
     def read(self, memory_address: int) -> None | mp.MemoryItem:
+        """
+        Description: Read from cache with synchronization.
+        """
         with self.get_lock(memory_address):
             return self.read_no_sync(memory_address)
     
@@ -31,6 +39,9 @@ class Cache:
             wtag: int,
         ) -> None | mp.MemoryItem:
         with self.get_lock(memory_address):
+            """
+            Description: Write to cache with synchronization.
+            """
             key = memory_address % self.cache_size
             if self.key_map[key] == memory_address:
                 self.cache[key].data = data
@@ -47,6 +58,9 @@ class Cache:
                 return self.cache[key]
         
     def remove(self, memory_address: int) -> None:
+        """
+        Description: Remove an item from the cache with synchronization.
+        """
         with self.get_lock(memory_address):
             key = memory_address % self.cache_size
             if self.key_map[key] == memory_address:
@@ -54,5 +68,8 @@ class Cache:
                 self.cache[key] = None
         
     def get_lock(self, memory_address: int) -> th.Lock:
+        """
+        Description: Get the lock for a given memory address.
+        """
         key = memory_address % self.cache_size
         return self.locks[key]

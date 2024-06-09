@@ -60,6 +60,10 @@ class Server:
                     target=self.handle_client, args=(client_socket, client_address)
                 )
                 thread.start()
+                # th.active_count() - 1 because the main thread is also counted
+                # as an active thread. Sometimes, this result might still not be
+                # accurate because we might have lock-leasing threads that are still active
+                # but of course do not count as active connections.
                 log_msg(
                     f"[ACTIVE CONNECTIONS] Active connections: {th.active_count() - 1}"
                 )
@@ -760,6 +764,11 @@ class Server:
 
 
 def start_server_process(server_index: int):
+    """
+    Description: given a server index, start the server process
+    This function finds the memory range and network address that this server
+    should use and starts the server process with these parameters
+    """
     memory_size = gv.MEMORY_SIZE
     server_count = len(gv.SERVERS)
     server_memory_size = memory_size // server_count

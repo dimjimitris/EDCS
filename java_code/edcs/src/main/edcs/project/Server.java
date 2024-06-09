@@ -58,6 +58,10 @@ public class Server {
                     handleClient(clientSocket);
                 });
                 thread.start();
+                // Thread.activeCount() - 2 because the main threa and the thread from the Timer() in the MemoryManager
+                // are also counted as active threads. Sometimes, this result might still not be
+                // accurate because we might have lock-leasing threads that are still active
+                // but of course do not count as active connections.
                 logMsg("[ACTIVE CONNECTIONS] Active connections: " + (Thread.activeCount() - 2));
             }
         } catch (IOException e) {

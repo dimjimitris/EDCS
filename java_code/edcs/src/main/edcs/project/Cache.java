@@ -24,8 +24,11 @@ public class Cache {
         }
     }
 
-    // used only in dumpcache, doesn't really matter as a function
-    // we don't need it to be synchronous
+    /*
+    Description: Read from cache without synchronization.
+    Used in the dumpcache functionality, which is called just for
+    debugging/checking purposes.
+     */
     public MemoryItem readNoSync(int memoryAddress) {
         int key = memoryAddress % cacheSize;
         if (memoryAddress != keyMap.get(key)) {
@@ -34,12 +37,14 @@ public class Cache {
         return cache.get(key);
     }
 
+    // Description: Read from cache with synchronization.
     public MemoryItem read(int memoryAddress) {
         synchronized (this.getLock(memoryAddress)) {
             return readNoSync(memoryAddress);
         }
     }
 
+    // Description: Write to cache with synchronization.
     public MemoryItem write(int memoryAddress, Object data, String status, long wtag) {
         synchronized (this.getLock(memoryAddress)) {
             int key = memoryAddress % cacheSize;
@@ -57,6 +62,7 @@ public class Cache {
         }
     }
 
+    // Description: Remove an item from the cache with synchronization.
     public void remove(int memoryAddress) {
         synchronized (this.getLock(memoryAddress)) {
             int key = memoryAddress % cacheSize;
@@ -67,6 +73,7 @@ public class Cache {
         }
     }
 
+    // Description: Get the lock for a given memory address.
     public Lock getLock(int memoryAddress) {
         int key = memoryAddress % cacheSize;
         return locks.get(key);

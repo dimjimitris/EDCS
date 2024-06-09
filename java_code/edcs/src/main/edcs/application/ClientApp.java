@@ -28,7 +28,7 @@ public class ClientApp {
         try {
             client.connect();
         } catch (IOException e) {
-            System.out.println("Failed to connect to the server.");
+            System.out.println("Failed to connect to the server with index " + serverIndex + ". Exiting.");
             return;
         }
 
