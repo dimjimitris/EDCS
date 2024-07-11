@@ -1,1 +1,0 @@
-Mention about page size (size of 'data' object stored in MemoryItem) and the perceived overhead we tried to avoid with caching and only getting/releasing the lock.
