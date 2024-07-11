@@ -2,9 +2,7 @@
 
 ## Authors
 
-Dimitrios Georgousis (K-7729)
-
-Gabriel Paic
+Dimitrios Georgousis
 
 ## Description
 
